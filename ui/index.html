@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>CRTMS | RUNSAFE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: rgba(255, 255, 255, 0.95);
+      --card: rgba(0, 0, 0, 0.04);
+      --border: rgba(0, 0, 0, 0.1);
+      --primary: #d97706;
+      --primary-strong: #ea580c;
+      --accent: #0891b2;
+      --green: #16a34a;
+      --red: #dc2626;
+      --text: #1e293b;
+      --muted: #64748b;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.12);
+      --radius-lg: 22px;
+      --radius-sm: 12px;
+      --header-bg: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0.8));
+      --grid-color: rgba(0,0,0,0.03);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0c1324;
+      --panel: rgba(14, 22, 40, 0.7);
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.09);
+      --primary: #f59e0b;
+      --primary-strong: #f97316;
+      --accent: #22d3ee;
+      --green: #22c55e;
+      --red: #ef4444;
+      --text: #e3e7ef;
+      --muted: #94a3b8;
+      --shadow: 0 24px 70px rgba(0, 0, 0, 0.35);
+      --header-bg: linear-gradient(180deg, rgba(12,19,36,0.95), rgba(12,19,36,0.4));
+      --grid-color: rgba(255,255,255,0.025);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Space Grotesk", "Inter", system-ui, sans-serif;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(245, 158, 11, 0.08), transparent 34%),
+        radial-gradient(circle at 80% 18%, rgba(34, 211, 238, 0.08), transparent 32%),
+        radial-gradient(circle at 60% 70%, rgba(59, 130, 246, 0.06), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    .grid-overlay {
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(var(--grid-color) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+      background-size: 110px 110px;
+      pointer-events: none;
+      mask-image:
+        radial-gradient(circle at 38% 30%, rgba(0,0,0,0.3), transparent 52%),
+        radial-gradient(circle at 70% 70%, rgba(0,0,0,0.2), transparent 55%);
+    }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px;
+      backdrop-filter: blur(16px);
+      background: var(--header-bg);
+      border-bottom: 1px solid var(--border);
+      z-index: 10; position: relative;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 1.05rem; }
+    .logo {
+      width: 44px; height: 44px; border-radius: 14px;
+      background: linear-gradient(145deg, #f59e0b, #f97316 45%, #ea580c);
+      box-shadow: 0 10px 28px rgba(249,115,22,0.4);
+      display: grid; place-items: center; color: #0c1324; font-weight: 800; font-size: 1.1rem;
+    }
+    .brand-sub { color: var(--muted); font-size: 0.85rem; font-weight: 400; }
+    .header-info { display: flex; align-items: center; gap: 16px; }
+    .header-badge {
+      padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
+      background: var(--card); border: 1px solid var(--border);
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+      border: 2px solid var(--border); background: var(--card);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s ease; position: relative; overflow: hidden;
+    }
+    .theme-toggle:hover { border-color: var(--primary); transform: scale(1.05); }
+    .theme-toggle::before {
+      content: ''; position: absolute; width: 50%; height: 100%;
+      left: 0; background: var(--text); border-radius: 20px 0 0 20px;
+    }
+    .theme-toggle::after {
+      content: ''; position: absolute; width: 50%; height: 100%;
+      right: 0; background: var(--bg); border-radius: 0 20px 20px 0;
+    }
+
+    .screen { display: none; padding: 24px 28px 48px; max-width: 1100px; margin: 0 auto; }
+    .screen.active { display: block; }
+    .panel {
+      background: linear-gradient(160deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow); padding: 28px; position: relative; overflow: hidden;
+    }
+    .panel::after {
+      content: ""; position: absolute; inset: -30% 55% auto auto;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(245,158,11,0.18), transparent 60%);
+      filter: blur(20px); opacity: 0.6; pointer-events: none;
+    }
+
+    /* ── Setup ── */
+    .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+    .setup-title { font-size: 1.6rem; font-weight: 700; margin-bottom: 4px; }
+    .setup-sub { color: var(--muted); font-size: 0.95rem; }
+
+    .field { display: grid; gap: 6px; margin-bottom: 16px; }
+    .field label { color: var(--muted); font-size: 0.9rem; font-weight: 500; }
+    .field input, .field select {
+      width: 100%; padding: 14px 16px; border-radius: 12px;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+      color: var(--text); font-size: 1rem; font-family: inherit;
+      outline: none; transition: 160ms ease;
+    }
+    .field input:focus, .field select:focus {
+      border-color: rgba(245,158,11,0.4);
+      box-shadow: 0 8px 24px rgba(249,115,22,0.15);
+    }
+    .field select option { background: #1a2340; color: var(--text); }
+    .search-wrap { position: relative; }
+    .search-results {
+      position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
+      background: #1a2340; border: 1px solid var(--border); border-radius: 12px;
+      max-height: 280px; overflow-y: auto; display: none; margin-top: 4px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    }
+    .search-results.open { display: block; }
+    .search-item {
+      padding: 14px 16px; cursor: pointer; border-bottom: 1px solid var(--border);
+      transition: background 120ms;
+    }
+    .search-item:last-child { border-bottom: none; }
+    .search-item:hover { background: rgba(245,158,11,0.1); }
+    .search-item .si-name { font-weight: 600; font-size: 1rem; }
+    .search-item .si-meta { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+
+    .staff-card {
+      display: none; padding: 16px; border-radius: 14px;
+      background: rgba(34,211,238,0.06); border: 1px solid rgba(34,211,238,0.15);
+      margin-bottom: 16px;
+    }
+    .staff-card.visible { display: block; }
+    .staff-card .sc-name { font-weight: 700; font-size: 1.15rem; }
+    .staff-card .sc-row { display: flex; gap: 20px; margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
+    .staff-card .sc-tag {
+      display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem;
+      background: rgba(245,158,11,0.15); color: #fbbf24; font-weight: 600;
+    }
+
+    .chip-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .cat-chip {
+      padding: 12px 20px; border-radius: 12px; cursor: pointer;
+      border: 1px solid var(--border); background: var(--card);
+      color: var(--text); font-size: 0.95rem; font-weight: 500;
+      transition: all 160ms; user-select: none;
+    }
+    .cat-chip:hover { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
+    .cat-chip.selected {
+      background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.45);
+      color: #fde68a; font-weight: 600;
+    }
+
+    .btn-primary {
+      background: linear-gradient(120deg, var(--primary), var(--primary-strong));
+      border: none; color: #0c1324; font-weight: 700; font-size: 1.05rem;
+      padding: 16px 32px; border-radius: 14px; cursor: pointer;
+      box-shadow: 0 14px 36px rgba(249,115,22,0.3);
+      transition: transform 140ms, box-shadow 140ms; font-family: inherit;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 18px 44px rgba(249,115,22,0.4); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+    .btn-secondary {
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+      padding: 14px 24px; border-radius: 14px; cursor: pointer; font-size: 1rem;
+      font-weight: 500; font-family: inherit; transition: 160ms;
+    }
+    .btn-secondary:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+
+    /* ── Mode Toggle ── */
+    .mode-toggle {
+      display: inline-flex; border-radius: 12px; border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03); overflow: hidden;
+    }
+    .mode-btn {
+      padding: 10px 24px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      background: transparent; border: none; color: var(--muted);
+      font-family: inherit; transition: all 160ms; user-select: none;
+    }
+    .mode-btn.active {
+      background: rgba(245,158,11,0.18); color: #fde68a;
+    }
+    .mode-btn:hover:not(.active) { background: rgba(255,255,255,0.04); }
+
+    /* ── Quiz ── */
+    .quiz-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
+    }
+    .quiz-progress { display: flex; align-items: center; gap: 16px; }
+    .q-badge {
+      padding: 8px 18px; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
+      background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25);
+    }
+    .q-cat {
+      padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 500;
+      background: rgba(34,211,238,0.1); color: #67e8f9; border: 1px solid rgba(34,211,238,0.2);
+    }
+    .q-timer {
+      padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 0.95rem;
+      background: var(--card); border: 1px solid var(--border); font-variant-numeric: tabular-nums;
+    }
+    .progress-bar-wrap {
+      width: 100%; height: 6px; background: rgba(255,255,255,0.06);
+      border-radius: 3px; margin-bottom: 24px; overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 3px; transition: width 400ms ease;
+    }
+    .question-text {
+      font-size: 1.35rem; font-weight: 600; line-height: 1.55;
+      margin-bottom: 28px; padding-right: 20px;
+    }
+    .options-grid { display: grid; gap: 14px; margin-bottom: 28px; }
+    .option-card {
+      display: flex; align-items: center; gap: 16px;
+      padding: 20px 24px; border-radius: 16px;
+      border: 2px solid var(--border); background: rgba(255,255,255,0.03);
+      cursor: pointer; transition: all 180ms; user-select: none;
+      min-height: 64px; -webkit-tap-highlight-color: transparent;
+    }
+    .option-card:hover { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.05); }
+    .option-card.selected {
+      border-color: rgba(245,158,11,0.6); background: rgba(245,158,11,0.12);
+      box-shadow: 0 6px 24px rgba(249,115,22,0.15);
+    }
+    .option-letter {
+      width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+      display: grid; place-items: center; font-weight: 700; font-size: 1.1rem;
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      transition: all 180ms;
+    }
+    .option-card.selected .option-letter {
+      background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.5); color: #fde68a;
+    }
+    .option-text { font-size: 1.1rem; line-height: 1.45; }
+    .quiz-actions { display: flex; gap: 14px; flex-wrap: wrap; }
+
+    /* Session log */
+    .quiz-layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; }
+    .session-log { max-height: 70vh; overflow-y: auto; }
+    .log-title { font-size: 1rem; font-weight: 600; margin-bottom: 12px; color: var(--muted); }
+    .log-item {
+      padding: 12px 14px; border-radius: 10px; margin-bottom: 8px;
+      background: rgba(255,255,255,0.03); border: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .log-item .li-q { font-weight: 600; font-size: 0.9rem; }
+    .log-item .li-cat { color: var(--muted); font-size: 0.8rem; }
+    .log-badge { padding: 4px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 700; }
+
+    /* ── Results ── */
+    .results-header { text-align: center; margin-bottom: 32px; }
+    .results-score {
+      font-size: 4rem; font-weight: 800; margin: 8px 0;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .results-grade {
+      display: inline-block; padding: 8px 24px; border-radius: 10px;
+      font-weight: 700; font-size: 1.1rem; margin-top: 8px;
+    }
+    .grade-proficient { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
+    .grade-development { background: rgba(245,158,11,0.15); color: #fde68a; border: 1px solid rgba(245,158,11,0.3); }
+    .grade-weak { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+
+    .results-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 24px 0; }
+    .rs-card {
+      padding: 16px; border-radius: 14px; text-align: center;
+      background: var(--card); border: 1px solid var(--border);
+    }
+    .rs-card .rs-val { font-size: 1.5rem; font-weight: 700; }
+    .rs-card .rs-label { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+
+    .marksheet { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 24px; }
+    .marksheet th {
+      text-align: left; padding: 12px 16px; color: var(--muted); font-size: 0.85rem;
+      font-weight: 600; border-bottom: 1px solid var(--border); text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .marksheet td {
+      padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 0.95rem; vertical-align: top;
+    }
+    .marksheet tr:hover td { background: rgba(255,255,255,0.02); }
+    .mark-correct { color: var(--green); font-weight: 600; }
+    .mark-wrong { color: var(--red); font-weight: 600; }
+
+    .spinner {
+      width: 28px; height: 28px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: inline-block; vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hist-chip {
+      padding: 8px 14px; border-radius: 10px; cursor: pointer;
+      border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+      font-size: 0.85rem; transition: all 160ms; display: inline-flex;
+      align-items: center; gap: 8px;
+    }
+    .hist-chip:hover { border-color: rgba(34,211,238,0.4); background: rgba(34,211,238,0.06); }
+    .hist-score { font-weight: 700; }
+    .hist-date { color: var(--muted); }
+
+    @media (max-width: 960px) {
+      .setup-grid { grid-template-columns: 1fr; }
+      .quiz-layout { grid-template-columns: 1fr; }
+      .session-log { display: none; }
+      .results-stats { grid-template-columns: repeat(2, 1fr); }
+      .panel { padding: 20px; }
+      header { padding: 14px 18px; }
+      .screen { padding: 16px 18px 40px; }
+      .question-text { font-size: 1.15rem; }
+      .option-card { padding: 18px 20px; min-height: 58px; }
+    }
+
+    @media (max-width: 600px) {
+      .brand span { display: none; }
+      .results-stats { grid-template-columns: 1fr 1fr; }
+      .results-score { font-size: 3rem; }
+      .marksheet { font-size: 0.85rem; }
+      .marksheet th, .marksheet td { padding: 10px 10px; }
+    }
+  </style>
+</head>
+<body>
+<div class="grid-overlay"></div>
+
+<header>
+  <div class="brand">
+    <div class="logo">R</div>
+    <div>
+      <span>CRTMS RUNSAFE</span><br />
+      <span class="brand-sub">Running Staff Assessment Framework for Enhanced Familiarization & Evaluation</span>
+    </div>
+  </div>
+  <div class="header-info">
+    <div class="header-badge" id="hdr-cli" style="display:none;"></div>
+    <div class="header-badge" id="hdr-mode" style="display:none;"></div>
+    <div class="theme-toggle" id="theme-toggle" title="Toggle theme"></div>
+  </div>
+</header>
+
+<!-- ═══ SETUP ═══ -->
+<div class="screen active" id="screen-setup">
+  <div class="panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div class="setup-title">Start Assessment Session</div>
+        <div class="setup-sub">Select mode, CLI/Instructor, then search staff to begin.</div>
+      </div>
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div class="mode-toggle" id="mode-toggle">
+          <button class="mode-btn active" data-mode="MAINLINE">Mainline</button>
+          <button class="mode-btn" data-mode="SUBURBAN">Suburban</button>
+        </div>
+        <button class="btn-secondary" id="btn-view-reports" style="padding:10px 18px; font-size:0.9rem;">View Reports</button>
+      </div>
+    </div>
+
+    <div class="setup-grid">
+      <!-- LEFT COLUMN: CLI first, then Staff -->
+      <div>
+        <div class="field">
+          <label>CLI / Instructor</label>
+          <div class="search-wrap">
+            <input type="text" id="cli-search" placeholder="CLI CMS ID or name..." autocomplete="off" />
+            <div class="search-results" id="cli-results"></div>
+          </div>
+        </div>
+        <div class="staff-card" id="cli-card">
+          <div class="sc-name" id="cc-name"></div>
+          <div class="sc-row">
+            <span id="cc-cms"></span>
+            <span id="cc-office"></span>
+            <span class="sc-tag" id="cc-role" style="display:none;"></span>
+          </div>
+        </div>
+
+        <div class="field">
+          <label id="staff-search-label">Staff Name or CMS ID</label>
+          <div class="search-wrap">
+            <input type="text" id="staff-search" placeholder="Type name or CMS ID number..." autocomplete="off" />
+            <div class="search-results" id="staff-results"></div>
+          </div>
+        </div>
+        <div class="staff-card" id="staff-card">
+          <div class="sc-name" id="sc-name"></div>
+          <div class="sc-row">
+            <span id="sc-cms"></span>
+            <span id="sc-desg"></span>
+            <span id="sc-office"></span>
+          </div>
+        </div>
+
+        <!-- Staff past sessions -->
+        <div id="staff-history" style="display:none; margin-bottom:16px;">
+          <div style="color:var(--muted); font-size:0.85rem; font-weight:600; margin-bottom:6px;">Previous Sessions</div>
+          <div id="staff-history-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:180px; overflow-y:auto;"></div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN: Config -->
+      <div>
+        <div class="field">
+          <label>Category</label>
+          <div class="chip-row" id="category-chips">
+            <div class="cat-chip selected" data-value="all_topics">All Topics (Mixed)</div>
+            <div class="cat-chip" data-value="traffic_rules">Traffic Rules</div>
+            <div class="cat-chip" data-value="electric_loco">Electric Loco</div>
+            <div class="cat-chip" data-value="diesel_loco">Diesel Loco</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Number of Questions</label>
+          <select id="q-count">
+            <option value="10">10 Questions</option>
+            <option value="15" selected>15 Questions</option>
+            <option value="20">20 Questions</option>
+            <option value="25">25 Questions</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Difficulty</label>
+          <select id="q-diff">
+            <option value="mixed" selected>Mixed</option>
+            <option value="easy">Easy</option>
+            <option value="medium">Medium</option>
+            <option value="hard">Hard</option>
+          </select>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 14px;">
+          <button class="btn-primary" id="btn-start" disabled>Start Quiz</button>
+        </div>
+        <div id="start-error" style="color: var(--red); margin-top: 10px; font-size: 0.9rem;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REPORT LOOKUP PANEL (hidden by default) -->
+  <div class="panel" id="report-lookup-panel" style="display:none; margin-top:16px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+      <h3 style="font-size:1.2rem; font-weight:700;">View Reports</h3>
+      <button class="btn-secondary" id="btn-close-reports" style="padding:8px 16px; font-size:0.85rem;">Close</button>
+    </div>
+    <div class="field">
+      <label>Search Staff by Name or CMS ID</label>
+      <div class="search-wrap">
+        <input type="text" id="report-staff-search" placeholder="Type name or CMS ID..." autocomplete="off" />
+        <div class="search-results" id="report-staff-results"></div>
+      </div>
+    </div>
+    <div id="report-staff-info" style="display:none; margin-bottom:12px;">
+      <div style="font-weight:700; font-size:1.1rem;" id="rsi-name"></div>
+      <div style="color:var(--muted); font-size:0.9rem;" id="rsi-meta"></div>
+    </div>
+    <div id="report-history" style="display:none;">
+      <div style="color:var(--muted); font-size:0.85rem; font-weight:600; margin-bottom:6px;">Sessions</div>
+      <div id="report-history-list" style="display:flex; flex-wrap:wrap; gap:8px; max-height:300px; overflow-y:auto;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ QUIZ ═══ -->
+<div class="screen" id="screen-quiz">
+  <div class="quiz-layout">
+    <div class="panel">
+      <div class="quiz-header">
+        <div class="quiz-progress">
+          <div class="q-badge" id="q-counter">Q 1 / 15</div>
+          <div class="q-cat" id="q-category"></div>
+        </div>
+        <div class="q-timer" id="q-timer">00:00</div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="q-progress" style="width: 0%;"></div>
+      </div>
+      <div class="question-text" id="q-text"></div>
+      <div class="options-grid" id="q-options"></div>
+      <div class="quiz-actions">
+        <button class="btn-primary" id="btn-next" disabled>Next Question →</button>
+        <button class="btn-primary" id="btn-submit-quiz" style="display:none;">Submit Quiz</button>
+      </div>
+    </div>
+    <div class="panel session-log" id="session-log">
+      <div class="log-title">Session Log</div>
+      <div id="log-items"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RESULTS ═══ -->
+<div class="screen" id="screen-results">
+  <div class="panel">
+    <div class="results-header">
+      <div class="setup-sub">Assessment Complete</div>
+      <div class="results-score" id="r-score"></div>
+      <div><span class="results-grade" id="r-grade"></span></div>
+      <div style="margin-top: 12px; color: var(--muted); font-size: 0.95rem;" id="r-staff-info"></div>
+    </div>
+    <div class="results-stats">
+      <div class="rs-card">
+        <div class="rs-val" id="r-correct" style="color: var(--green);">0</div>
+        <div class="rs-label">Correct</div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-val" id="r-wrong" style="color: var(--red);">0</div>
+        <div class="rs-label">Wrong</div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-val" id="r-total">0</div>
+        <div class="rs-label">Total</div>
+      </div>
+      <div class="rs-card">
+        <div class="rs-val" id="r-time">0m</div>
+        <div class="rs-label">Duration</div>
+      </div>
+    </div>
+    <h3 style="margin: 24px 0 12px; color: var(--muted); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em;">Category-wise Score</h3>
+    <div id="r-categories"></div>
+    <h3 style="margin: 28px 0 12px; color: var(--muted); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em;">Marksheet</h3>
+    <div style="overflow-x: auto;">
+      <table class="marksheet">
+        <thead>
+          <tr><th>#</th><th>Question</th><th>Your Answer</th><th>Correct Answer</th><th>Result</th></tr>
+        </thead>
+        <tbody id="r-marksheet"></tbody>
+      </table>
+    </div>
+
+    <!-- Inspector Notes -->
+    <h3 style="margin: 28px 0 12px; color: var(--muted); font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.04em;">Inspector / CLI Notes</h3>
+    <div style="display:flex; gap:12px; align-items:flex-start;">
+      <textarea id="r-notes" rows="3" placeholder="Add observations, advice given, areas to focus on..."
+        style="flex:1; padding:14px 16px; border-radius:12px; border:1px solid var(--border);
+        background:rgba(255,255,255,0.04); color:var(--text); font-size:1rem;
+        font-family:inherit; outline:none; resize:vertical;"></textarea>
+      <button class="btn-secondary" id="btn-save-notes" style="white-space:nowrap;">Save Notes</button>
+    </div>
+    <div id="notes-status" style="color:var(--green); font-size:0.85rem; margin-top:6px;"></div>
+
+    <div style="margin-top: 32px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap;">
+      <button class="btn-primary" id="btn-new-session">New Session</button>
+      <button class="btn-secondary" id="btn-view-report">View Full Report</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+
+// State
+let selectedStaff = null;
+let selectedCli = null;
+let sessionData = null;
+let questions = [];
+let currentQ = 0;
+let answers = {};
+let quizStartTime = null;
+let timerInterval = null;
+let selectedOption = null;
+let currentMode = 'MAINLINE'; // or 'SUBURBAN'
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+}
+
+// ── Mode Toggle ──
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('#mode-toggle .mode-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.mode === mode);
+  });
+  const badge = document.getElementById('hdr-mode');
+  badge.textContent = mode === 'SUBURBAN' ? 'Suburban' : 'Mainline';
+  badge.style.display = '';
+  updateCategoryChips(mode === 'SUBURBAN');
+  document.getElementById('staff-search-label').textContent =
+    mode === 'SUBURBAN' ? 'Motorman Name or CMS ID' : 'Staff Name or CMS ID';
+  if (selectedStaff) {
+    selectedStaff = null;
+    document.getElementById('staff-search').value = '';
+    document.getElementById('staff-card').classList.remove('visible');
+    document.getElementById('staff-history').style.display = 'none';
+    checkStartReady();
+  }
+}
+
+document.querySelectorAll('#mode-toggle .mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+function updateCategoryChips(isSuburban) {
+  const chipRow = document.getElementById('category-chips');
+  if (isSuburban) {
+    chipRow.innerHTML = `
+      <div class="cat-chip selected" data-value="all_topics">All Topics (Mixed)</div>
+      <div class="cat-chip" data-value="emu">EMU</div>
+      <div class="cat-chip" data-value="traffic_rules">Traffic Rules</div>`;
+  } else {
+    chipRow.innerHTML = `
+      <div class="cat-chip selected" data-value="all_topics">All Topics (Mixed)</div>
+      <div class="cat-chip" data-value="traffic_rules">Traffic Rules</div>
+      <div class="cat-chip" data-value="electric_loco">Electric Loco</div>
+      <div class="cat-chip" data-value="diesel_loco">Diesel Loco</div>`;
+  }
+  chipRow.querySelectorAll('.cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      chipRow.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('selected'));
+      chip.classList.add('selected');
+    });
+  });
+}
+
+// ── Staff search (filtered by mode) ──
+let searchTimeout = null;
+const staffSearch = document.getElementById('staff-search');
+const staffResults = document.getElementById('staff-results');
+
+staffSearch.addEventListener('input', () => {
+  clearTimeout(searchTimeout);
+  const q = staffSearch.value.trim();
+  if (q.length < 2) { staffResults.classList.remove('open'); return; }
+  searchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API}/session/staff/search?q=${encodeURIComponent(q)}&mode=${currentMode}`);
+      const data = await res.json();
+      renderSearchResults(staffResults, data.results, selectStaff);
+    } catch(e) { console.error(e); }
+  }, 250);
+});
+
+function renderSearchResults(container, results, onSelect) {
+  if (!results.length) {
+    container.innerHTML = '<div style="padding:14px 16px; color:var(--muted);">No results found</div>';
+    container.classList.add('open');
+    return;
+  }
+  container.innerHTML = results.map((r, i) => `
+    <div class="search-item" data-idx="${i}">
+      <div class="si-name">${r.name}</div>
+      <div class="si-meta">${r.cms_id || ''} · ${r.designation || ''} · ${r.office || ''}</div>
+    </div>
+  `).join('');
+  container.classList.add('open');
+  container.querySelectorAll('.search-item').forEach(el => {
+    el.addEventListener('click', () => {
+      onSelect(results[parseInt(el.dataset.idx)]);
+      container.classList.remove('open');
+    });
+  });
+}
+
+function selectStaff(staff) {
+  selectedStaff = staff;
+  staffSearch.value = staff.name;
+  document.getElementById('staff-card').classList.add('visible');
+  document.getElementById('sc-name').textContent = staff.name;
+  document.getElementById('sc-cms').textContent = staff.cms_id || staff.hrms_id;
+  document.getElementById('sc-desg').textContent = staff.designation_name || staff.designation || '';
+  document.getElementById('sc-office').textContent = staff.office || '';
+  checkStartReady();
+  loadStaffHistory(staff.cms_id || staff.hrms_id);
+}
+
+async function loadStaffHistory(staffId) {
+  const wrap = document.getElementById('staff-history');
+  const list = document.getElementById('staff-history-list');
+  list.innerHTML = '';
+  wrap.style.display = 'none';
+
+  try {
+    const res = await fetch(`${API}/history/staff/${encodeURIComponent(staffId)}?limit=100`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.sessions || !data.sessions.length) return;
+
+    wrap.style.display = 'block';
+    list.innerHTML = renderHistoryChips(data.sessions);
+  } catch(e) { console.error(e); }
+}
+
+function renderHistoryChips(sessions) {
+  return sessions.map(s => {
+    const d = s.started_at ? new Date(s.started_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    const pct = parseFloat(s.percentage || 0).toFixed(0);
+    const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--primary)' : 'var(--red)';
+    return `<div class="hist-chip" onclick="window.open('/ui/report.html?session=${s.id}','runsafe_report')">
+      <span class="hist-date">#${s.test_number} · ${d}</span>
+      <span class="hist-score" style="color:${color};">${s.total_score}/${s.total_questions} (${pct}%)</span>
+    </div>`;
+  }).join('');
+}
+
+// ── CLI search ──
+let cliTimeout = null;
+const cliSearch = document.getElementById('cli-search');
+const cliResults = document.getElementById('cli-results');
+
+cliSearch.addEventListener('input', () => {
+  clearTimeout(cliTimeout);
+  const q = cliSearch.value.trim();
+  if (q.length < 2) { cliResults.classList.remove('open'); return; }
+  cliTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API}/session/cli/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderCliResults(cliResults, data.results);
+    } catch(e) { console.error(e); }
+  }, 250);
+});
+
+function renderCliResults(container, results) {
+  if (!results.length) {
+    container.innerHTML = '<div style="padding:14px 16px; color:var(--muted);">No CLI found</div>';
+    container.classList.add('open');
+    return;
+  }
+  container.innerHTML = results.map((r, i) => {
+    const roleLabel = r.role === 'CLI' ? 'CLI' : 'Instructor';
+    const roleColor = r.role === 'CLI' ? '#67e8f9' : '#fbbf24';
+    return `<div class="search-item" data-idx="${i}">
+      <div class="si-name">${r.name} <span style="font-size:0.75rem;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:${roleColor};margin-left:8px;">${roleLabel}</span></div>
+      <div class="si-meta">${r.cms_id || ''} · ${r.office || ''}</div>
+    </div>`;
+  }).join('');
+  container.classList.add('open');
+  container.querySelectorAll('.search-item').forEach(el => {
+    el.addEventListener('click', () => {
+      selectCli(results[parseInt(el.dataset.idx)]);
+      container.classList.remove('open');
+    });
+  });
+}
+
+function selectCli(cli) {
+  selectedCli = cli;
+  cliSearch.value = cli.name;
+  document.getElementById('cli-card').classList.add('visible');
+  document.getElementById('cc-name').textContent = cli.name;
+  document.getElementById('cc-cms').textContent = cli.cms_id || '';
+  document.getElementById('cc-office').textContent = cli.office || '';
+  const roleLabel = cli.role === 'CLI' ? 'CLI' : 'Instructor';
+  document.getElementById('cc-role').textContent = roleLabel;
+  document.getElementById('cc-role').style.display = '';
+  document.getElementById('hdr-cli').textContent = roleLabel + ': ' + cli.name;
+  document.getElementById('hdr-cli').style.display = '';
+
+  // Auto-set mode from CLI office code
+  const office = (cli.office || '').toUpperCase();
+  if (office.includes('-SUB') || office.includes('SUB')) {
+    setMode('SUBURBAN');
+  } else if (office.includes('-ML') || office.includes('ML')) {
+    setMode('MAINLINE');
+  }
+  checkStartReady();
+}
+
+function checkStartReady() {
+  document.getElementById('btn-start').disabled = !(selectedStaff && selectedCli);
+}
+
+// ── View Reports ──
+document.getElementById('btn-view-reports').addEventListener('click', () => {
+  document.getElementById('report-lookup-panel').style.display = '';
+  document.getElementById('report-staff-search').focus();
+});
+document.getElementById('btn-close-reports').addEventListener('click', () => {
+  document.getElementById('report-lookup-panel').style.display = 'none';
+});
+
+let reportSearchTimeout = null;
+const reportStaffSearch = document.getElementById('report-staff-search');
+const reportStaffResults = document.getElementById('report-staff-results');
+
+reportStaffSearch.addEventListener('input', () => {
+  clearTimeout(reportSearchTimeout);
+  const q = reportStaffSearch.value.trim();
+  if (q.length < 2) { reportStaffResults.classList.remove('open'); return; }
+  reportSearchTimeout = setTimeout(async () => {
+    try {
+      const res = await fetch(`${API}/session/staff/search?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      renderSearchResults(reportStaffResults, data.results, selectReportStaff);
+    } catch(e) { console.error(e); }
+  }, 250);
+});
+
+async function selectReportStaff(staff) {
+  reportStaffSearch.value = staff.name;
+  document.getElementById('report-staff-info').style.display = 'block';
+  document.getElementById('rsi-name').textContent = staff.name;
+  document.getElementById('rsi-meta').textContent = `${staff.cms_id || ''} · ${staff.designation || ''} · ${staff.office || ''}`;
+
+  try {
+    const res = await fetch(`${API}/history/staff/${encodeURIComponent(staff.cms_id || staff.hrms_id)}?limit=100`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const wrap = document.getElementById('report-history');
+    const list = document.getElementById('report-history-list');
+    if (data.sessions && data.sessions.length) {
+      wrap.style.display = 'block';
+      list.innerHTML = renderHistoryChips(data.sessions);
+    } else {
+      wrap.style.display = 'block';
+      list.innerHTML = '<div style="color:var(--muted); padding:8px;">No sessions found for this staff.</div>';
+    }
+  } catch(e) { console.error(e); }
+}
+
+// ── Start Quiz ──
+document.getElementById('btn-start').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-start');
+  const errEl = document.getElementById('start-error');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Starting...';
+
+  const category = document.querySelector('.cat-chip.selected').dataset.value;
+  const qCount = parseInt(document.getElementById('q-count').value);
+  const difficulty = document.getElementById('q-diff').value;
+
+  try {
+    const res = await fetch(`${API}/session/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        staff_id: selectedStaff.cms_id || selectedStaff.hrms_id,
+        cli_id: selectedCli.cms_id || selectedCli.hrms_id,
+        category, difficulty,
+        question_count: qCount,
+        staff_type: currentMode,
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to start session');
+
+    sessionData = data;
+    questions = data.questions;
+    currentQ = 0;
+    answers = {};
+    quizStartTime = Date.now();
+    selectedOption = null;
+    document.getElementById('log-items').innerHTML = '';
+
+    showScreen('quiz');
+    startTimer();
+    renderQuestion();
+  } catch(e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Start Quiz';
+    checkStartReady();
+  }
+});
+
+// ── Timer ──
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    document.getElementById('q-timer').textContent = m + ':' + s;
+  }, 1000);
+}
+
+// ── Render question ──
+function renderQuestion() {
+  const q = questions[currentQ];
+  const total = questions.length;
+  selectedOption = null;
+
+  document.getElementById('q-counter').textContent = `Q ${currentQ + 1} / ${total}`;
+  document.getElementById('q-category').textContent = formatCat(q.category);
+  document.getElementById('q-progress').style.width = `${((currentQ) / total) * 100}%`;
+  document.getElementById('q-text').textContent = q.question_text;
+
+  document.getElementById('q-options').innerHTML = ['A','B','C','D'].map(L => {
+    const text = q['option_' + L.toLowerCase()];
+    if (!text) return '';
+    return `<div class="option-card" data-letter="${L}">
+      <div class="option-letter">${L}</div>
+      <div class="option-text">${text}</div>
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('.option-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.option-card').forEach(c => c.classList.remove('selected'));
+      card.classList.add('selected');
+      selectedOption = card.dataset.letter;
+      document.getElementById('btn-next').disabled = false;
+    });
+  });
+
+  const isLast = currentQ === total - 1;
+  document.getElementById('btn-next').style.display = isLast ? 'none' : '';
+  const submitBtn = document.getElementById('btn-submit-quiz');
+  submitBtn.style.display = isLast ? '' : 'none';
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Submit Quiz';
+  document.getElementById('btn-next').disabled = true;
+}
+
+function formatCat(code) {
+  return { traffic_rules:'Traffic Rules', electric_loco:'Electric Loco', diesel_loco:'Diesel Loco',
+    sectional_knowledge:'Sectional Knowledge', e_case_study:'Case Study', emu:'EMU', aws:'AWS',
+    all_topics:'Mixed' }[code] || code;
+}
+
+// ── Next / Submit ──
+document.getElementById('btn-next').addEventListener('click', () => {
+  if (!selectedOption) return;
+  recordAnswer();
+  currentQ++;
+  renderQuestion();
+});
+
+document.getElementById('btn-submit-quiz').addEventListener('click', () => {
+  if (!selectedOption) return;
+  recordAnswer();
+  submitQuiz();
+});
+
+function recordAnswer() {
+  const q = questions[currentQ];
+  answers[q.id] = selectedOption;
+  const logEl = document.getElementById('log-items');
+  const div = document.createElement('div');
+  div.className = 'log-item';
+  div.innerHTML = `<div><div class="li-q">Q${currentQ+1}</div><div class="li-cat">${formatCat(q.category)}</div></div>
+    <div class="log-badge" style="background:rgba(255,255,255,0.08);color:var(--muted);">${selectedOption}</div>`;
+  logEl.prepend(div);
+}
+
+async function submitQuiz() {
+  clearInterval(timerInterval);
+  const btn = document.getElementById('btn-submit-quiz');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Submitting...';
+
+  try {
+    const res = await fetch(`${API}/session/submit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionData.session_id, answers })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Submit failed');
+    renderResults(data);
+    showScreen('results');
+  } catch(e) {
+    alert('Error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Submit Quiz';
+  }
+}
+
+// ── Results ──
+function renderResults(data) {
+  const pct = data.percentage || 0;
+  document.getElementById('r-notes').value = '';
+  document.getElementById('notes-status').textContent = '';
+  document.getElementById('r-score').textContent = `${pct}%`;
+
+  const gradeEl = document.getElementById('r-grade');
+  gradeEl.textContent = data.grade || '';
+  gradeEl.className = 'results-grade';
+  if (pct >= 70) gradeEl.classList.add('grade-proficient');
+  else if (pct >= 40) gradeEl.classList.add('grade-development');
+  else gradeEl.classList.add('grade-weak');
+
+  document.getElementById('r-staff-info').textContent =
+    `${sessionData.staff.name} · ${sessionData.staff.cms_id} · ${sessionData.staff.designation} · Test #${sessionData.test_number}`;
+
+  document.getElementById('r-correct').textContent = data.total_score || 0;
+  document.getElementById('r-wrong').textContent = (data.total_questions||0) - (data.total_score||0);
+  document.getElementById('r-total').textContent = data.total_questions || 0;
+
+  const elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+  document.getElementById('r-time').textContent = `${Math.floor(elapsed/60)}m ${elapsed%60}s`;
+
+  // Category bars
+  const catDiv = document.getElementById('r-categories');
+  if (data.category_scores && data.category_scores.length) {
+    catDiv.innerHTML = data.category_scores.map(cs => {
+      const p = cs.percentage || 0;
+      const color = p >= 70 ? 'var(--green)' : p >= 40 ? 'var(--primary)' : 'var(--red)';
+      return `<div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+        <div style="width:160px;font-size:0.9rem;color:var(--muted);">${cs.subcategory && cs.subcategory !== 'General' ? cs.subcategory : formatCat(cs.category)}</div>
+        <div style="flex:1;height:8px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${p}%;background:${color};border-radius:4px;transition:width 600ms;"></div>
+        </div>
+        <div style="width:80px;text-align:right;font-weight:700;color:${color};">${cs.score}/${cs.question_count} (${p}%)</div>
+      </div>`;
+    }).join('');
+  } else catDiv.innerHTML = '';
+
+  // Marksheet
+  document.getElementById('r-marksheet').innerHTML = (data.marksheet||[]).map((m,i) => `<tr>
+    <td>${i+1}</td>
+    <td>${m.question_text}</td>
+    <td class="${m.is_correct?'mark-correct':'mark-wrong'}">${m.submitted_answer_text||m.submitted_answer}</td>
+    <td>${m.correct_answer_text||m.correct_answer}</td>
+    <td class="${m.is_correct?'mark-correct':'mark-wrong'}">${m.is_correct?'✓':'✗'}</td>
+  </tr>`).join('');
+}
+
+// ── Save inspector notes ──
+document.getElementById('btn-save-notes').addEventListener('click', async () => {
+  const notes = document.getElementById('r-notes').value.trim();
+  if (!notes || !sessionData) return;
+  const statusEl = document.getElementById('notes-status');
+  statusEl.textContent = 'Saving...';
+  try {
+    const res = await fetch(`${API}/session/${sessionData.session_id}/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes })
+    });
+    if (!res.ok) throw new Error('Failed to save');
+    statusEl.textContent = '✓ Notes saved';
+  } catch(e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+// ── New session / Report ──
+document.getElementById('btn-new-session').addEventListener('click', () => {
+  selectedStaff = null; sessionData = null;
+  staffSearch.value = '';
+  document.getElementById('staff-card').classList.remove('visible');
+  document.getElementById('staff-history').style.display = 'none';
+  checkStartReady();
+  showScreen('setup');
+});
+
+document.getElementById('btn-view-report').addEventListener('click', () => {
+  if (sessionData) window.open(`/ui/report.html?session=${sessionData.session_id}`, 'runsafe_report');
+});
+
+// Close dropdowns
+document.addEventListener('click', e => {
+  if (!e.target.closest('.search-wrap')) {
+    staffResults.classList.remove('open');
+    cliResults.classList.remove('open');
+    reportStaffResults.classList.remove('open');
+  }
+});
+
+// ── Theme Toggle ──
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('runsafe-theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+themeToggle.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const newTheme = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('runsafe-theme', newTheme);
+});
+</script>
+</body>
+</html>

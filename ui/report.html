@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRTMS | Session Report</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --panel: rgba(255, 255, 255, 0.95);
+      --card: rgba(0, 0, 0, 0.04);
+      --border: rgba(0, 0, 0, 0.12);
+      --primary: #d97706;
+      --primary-strong: #ea580c;
+      --accent: #0891b2;
+      --green: #16a34a;
+      --red: #dc2626;
+      --text: #1e293b;
+      --muted: #64748b;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.1);
+      --radius-lg: 22px;
+      --radius-sm: 12px;
+      --table-stripe: rgba(0, 0, 0, 0.03);
+    }
+
+    [data-theme="dark"] {
+      --bg: #0c1324;
+      --panel: rgba(14, 22, 40, 0.78);
+      --card: rgba(255, 255, 255, 0.06);
+      --border: rgba(255, 255, 255, 0.12);
+      --primary: #f59e0b;
+      --primary-strong: #f97316;
+      --accent: #22d3ee;
+      --green: #22c55e;
+      --red: #ef4444;
+      --text: #e3e7ef;
+      --muted: #9aa6bf;
+      --shadow: 0 22px 60px rgba(0, 0, 0, 0.4);
+      --table-stripe: rgba(255, 255, 255, 0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      font-family: "Space Grotesk", "Inter", system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(circle at 12% 18%, rgba(245, 158, 11, 0.08), transparent 32%),
+        radial-gradient(circle at 82% 12%, rgba(34, 211, 238, 0.08), transparent 30%),
+        radial-gradient(circle at 66% 74%, rgba(59, 130, 246, 0.06), transparent 32%),
+        var(--bg);
+      color: var(--text);
+      padding: 22px;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(249, 115, 22, 0.95));
+      border-radius: var(--radius-lg);
+      padding: 18px 22px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      color: #fff;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+    .header-left h1 { margin: 0; letter-spacing: -0.01em; font-size: 1.6rem; }
+    .header-left p { margin: 4px 0 0; color: #fff; opacity: 0.9; }
+    .header-left .slogan { font-weight: 600; font-style: italic; opacity: 1; margin-top: 6px; }
+    .badge-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px; align-self: center;
+    }
+    .pill {
+      background: rgba(255, 255, 255, 0.25); border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 999px; padding: 8px 12px; font-weight: 700; text-align: center;
+      font-size: 0.9rem;
+    }
+
+    /* Theme Toggle */
+    .theme-toggle {
+      width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+      border: 2px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s ease; position: relative; overflow: hidden;
+    }
+    .theme-toggle:hover { border-color: #fff; transform: scale(1.05); }
+    .theme-toggle::before {
+      content: ''; position: absolute; width: 50%; height: 100%;
+      left: 0; background: #fff; border-radius: 18px 0 0 18px;
+    }
+    .theme-toggle::after {
+      content: ''; position: absolute; width: 50%; height: 100%;
+      right: 0; background: #1e293b; border-radius: 0 18px 18px 0;
+    }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid; grid-template-columns: 1.05fr 0.95fr;
+      gap: 16px; margin-top: 16px;
+    }
+
+    .panel {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--border); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow); padding: 18px;
+    }
+    .panel h2, .panel h3 { margin: 0 0 10px; letter-spacing: -0.01em; }
+
+    .meta-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px;
+    }
+    .meta-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px; display: grid; gap: 6px;
+    }
+    .meta-label { color: var(--muted); font-size: 0.9rem; }
+    .meta-value { font-weight: 700; font-size: 1rem; }
+    .staff-id { font-weight: 400; font-size: 0.85em; opacity: 0.8; }
+    .history-count, .weak-count { font-size: 0.75em; font-weight: 400; }
+    .test-tag { font-size: 0.7em; font-weight: 400; color: var(--muted); }
+    .qid-sub { font-size: 0.75em; color: var(--muted); font-weight: 400; }
+    .reattempt-tag { font-size: 0.75em; color: var(--accent); }
+    .q-text { line-height: 1.4; }
+
+    /* ── Tables ── */
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.95rem; }
+    th, td { border: 1px solid var(--border); padding: 10px 12px; text-align: left; vertical-align: top; color: var(--text); }
+    th { background: var(--card); font-weight: 700; }
+    tr:nth-child(even) td { background: var(--table-stripe); }
+
+    .score-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 12px; font-weight: 600;
+    }
+    .chip-proficient { background: rgba(34, 197, 94, 0.18); border: 1px solid rgba(34, 197, 94, 0.5); color: var(--green); }
+    .chip-development { background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.5); color: var(--primary); }
+    .chip-weak { background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.5); color: var(--red); }
+
+    .correct-mark { color: var(--green); font-weight: 700; }
+    .wrong-mark { color: var(--red); font-weight: 700; }
+    .muted { color: var(--muted); }
+
+    .history-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px; margin-top: 12px;
+    }
+    .small-table th, .small-table td { font-size: 0.9rem; }
+
+    /* ── Category bars ── */
+    .cat-bar-row {
+      display: flex; align-items: center; gap: 14px; margin-bottom: 10px;
+    }
+    .cat-bar-label { width: 140px; font-size: 0.9rem; color: var(--muted); flex-shrink: 0; }
+    .cat-bar-track {
+      flex: 1; height: 10px; background: var(--card);
+      border-radius: 5px; overflow: hidden;
+    }
+    .cat-bar-fill { height: 100%; border-radius: 5px; transition: width 600ms; }
+    .cat-bar-val { width: 100px; text-align: right; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+
+    /* ── Loading / Error ── */
+    .loading { text-align: center; padding: 60px; color: var(--muted); font-size: 1.1rem; }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: inline-block; margin-bottom: 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Actions ── */
+    .actions {
+      margin-top: 20px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+    }
+    .btn {
+      padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; border: none; font-family: inherit; transition: 140ms;
+    }
+    .btn-primary {
+      background: linear-gradient(120deg, var(--primary), var(--primary-strong));
+      color: #0c1324; box-shadow: 0 10px 28px rgba(249,115,22,0.3);
+    }
+    .btn-primary:hover { transform: translateY(-2px); }
+    .btn-secondary {
+      background: transparent; border: 1px solid var(--border); color: var(--text);
+    }
+    .btn-secondary:hover { border-color: var(--primary); background: var(--card); }
+
+    /* ── Print ── */
+    @media print {
+      body { background: #fff !important; color: #1a1a1a !important; padding: 10px; }
+      header { background: #f59e0b !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; padding: 10px 16px; }
+      .header-left h1 { font-size: 1.2rem; }
+      .header-left p { font-size: 0.75rem; margin-top: 2px; }
+      .header-left .slogan { font-size: 0.8rem; margin-top: 4px; }
+      .pill { font-size: 0.7rem; padding: 4px 10px; }
+      .no-print { display: none !important; }
+      .print-hide { display: none !important; }
+
+      /* Compact marksheet for print */
+      .marksheet-section { page-break-before: always; }
+      .marksheet-table { font-size: 0.75rem; }
+      .marksheet-table th, .marksheet-table td { padding: 4px 6px; }
+      .marksheet-table .q-text { font-size: 0.7rem; line-height: 1.3; }
+      .marksheet-table .qid-sub { font-size: 0.65em; }
+      .marksheet-table th:first-child { width: 35px; }
+      .marksheet-table th:nth-child(3), .marksheet-table th:nth-child(4) { width: 100px; }
+      .marksheet-table th:last-child { width: 25px; }
+      thead { display: table-header-group; }
+      tr { page-break-inside: avoid; }
+      /* Smaller fonts for session details */
+      .session-details .meta-label { font-size: 0.7rem; }
+      .session-details .meta-value { font-size: 0.85rem; }
+      .session-details .staff-id { font-size: 0.75em; }
+      .meta-card { padding: 8px 10px; }
+      .panel { box-shadow: none; border: 1px solid #ddd; background: #fff !important; }
+      .meta-card { background: #f8f8f8 !important; border: 1px solid #ddd; }
+      th { background: #eee !important; }
+      .muted { color: #777 !important; }
+      .actions { display: none; }
+      .cat-bar-track { background: #eee !important; }
+      tr:nth-child(even) td { background: #f5f5f5 !important; }
+      .correct-mark { color: #16a34a !important; }
+      .wrong-mark { color: #dc2626 !important; }
+    }
+
+    @media (max-width: 960px) {
+      body { padding: 14px; }
+      .grid { grid-template-columns: 1fr; }
+      header { grid-template-columns: 1fr; }
+      .history-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div class="spinner"></div><br />
+  Loading report...
+</div>
+
+<div id="report" style="display:none;">
+
+  <!-- ═══ HEADER ═══ -->
+  <header>
+    <div class="header-left">
+      <h1>RUNSAFE Session Report</h1>
+      <p>Central Railway · Mumbai Division · Office of Sr.DEE (TRS-O)</p>
+      <p class="slogan">Mission Zero SPAD</p>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div class="badge-grid no-print">
+        <div class="pill" id="h-date"></div>
+        <div class="pill" id="h-test"></div>
+        <div class="pill" id="h-score"></div>
+        <div class="pill" id="h-grade"></div>
+      </div>
+      <div class="theme-toggle no-print" id="theme-toggle" title="Toggle theme"></div>
+    </div>
+  </header>
+
+  <!-- ═══ SESSION DETAILS + SCORE SUMMARY ═══ -->
+  <div class="grid">
+    <section class="panel">
+      <h2>Session & crew details</h2>
+      <div class="meta-grid session-details">
+        <div class="meta-card">
+          <div class="meta-label">Counselled by</div>
+          <div class="meta-value" id="m-cli"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Loco Pilot</div>
+          <div class="meta-value" id="m-staff"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Designation</div>
+          <div class="meta-value" id="m-desg"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Nominated CLI</div>
+          <div class="meta-value" id="m-nom-cli"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Weak areas flagged</div>
+          <div class="meta-value" id="m-weak"></div>
+        </div>
+      </div>
+      <div class="meta-grid" style="margin-top:10px;">
+        <div class="meta-card" style="grid-column: 1 / -1;">
+          <div class="meta-label">Inspector notes</div>
+          <div class="meta-value muted" id="m-notes"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Score summary</h2>
+      <div class="meta-grid">
+        <div class="meta-card">
+          <div class="meta-label">Total questions</div>
+          <div class="meta-value" id="s-total"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Correct</div>
+          <div class="meta-value" style="color:var(--green);" id="s-correct"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Incorrect</div>
+          <div class="meta-value" style="color:var(--red);" id="s-wrong"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Duration</div>
+          <div class="meta-value" id="s-duration"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Category mix</div>
+          <div class="meta-value" id="s-categories"></div>
+        </div>
+        <div class="meta-card">
+          <div class="meta-label">Assessment</div>
+          <div class="meta-value"><span class="score-chip" id="s-grade"></span></div>
+        </div>
+      </div>
+
+      <!-- Category bars -->
+      <h3 style="margin-top:16px;">Category-wise breakdown</h3>
+      <div id="cat-bars"></div>
+    </section>
+  </div>
+
+  <!-- ═══ HISTORY & DEVELOPMENT ═══ -->
+  <section class="panel" style="margin-top:14px;">
+    <h2>History & development</h2>
+    <div class="history-grid">
+
+      <!-- Assessment History -->
+      <div class="panel" style="padding:14px;">
+        <h3>Assessment History <span class="history-count muted"></span></h3>
+        <table class="small-table">
+          <thead>
+            <tr><th>Sl.No.</th><th>Category</th><th>Score / Count</th><th>Date</th></tr>
+          </thead>
+          <tbody id="history-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Weak area history -->
+      <div class="panel" style="padding:14px;">
+        <h3>Weak area history <span class="weak-count muted"></span></h3>
+        <table class="small-table">
+          <thead>
+            <tr><th>Sl.No.</th><th>Sub category</th><th>Question count</th><th>Percentage</th></tr>
+          </thead>
+          <tbody id="weak-body"></tbody>
+        </table>
+      </div>
+
+      <!-- Development plan -->
+      <div class="panel" style="padding:14px;">
+        <h3>Development plan</h3>
+        <table class="small-table">
+          <thead>
+            <tr><th>Sl.No.</th><th>Sub category</th><th>Action</th></tr>
+          </thead>
+          <tbody id="devplan-body"></tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ MARKSHEET ═══ -->
+  <section class="panel marksheet-section" style="margin-top:16px;">
+    <h2>Questions answered <span class="test-tag" id="h-test-tag"></span></h2>
+    <div style="font-size:0.9rem; color:var(--muted); margin-bottom:6px;" id="reattempt-note"></div>
+    <div style="overflow-x:auto;">
+      <table class="marksheet-table">
+        <thead>
+          <tr>
+            <th style="width:50px;">Sl.</th>
+            <th>Question</th>
+            <th style="width:140px;">Answer given</th>
+            <th style="width:140px;">Correct answer</th>
+            <th style="width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="marksheet-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ═══ ACTIONS ═══ -->
+  <div class="actions">
+    <button class="btn btn-primary" onclick="window.print()">Print Report</button>
+    <button class="btn btn-secondary" onclick="if(window.opener){window.opener.focus()}else{window.location.href='/ui/'}">← Back to Quiz</button>
+  </div>
+
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+
+function formatCat(code) {
+  return { traffic_rules:'Traffic Rules', electric_loco:'Electric Loco', diesel_loco:'Diesel Loco',
+    sectional_knowledge:'Sectional Knowledge', e_case_study:'Case Study', emu:'EMU', aws:'AWS',
+    all_topics:'All Topics', General:'General' }[code] || code;
+}
+
+function gradeClass(grade) {
+  if (!grade) return '';
+  const g = grade.toLowerCase();
+  if (g.includes('proficient')) return 'chip-proficient';
+  if (g.includes('development')) return 'chip-development';
+  return 'chip-weak';
+}
+
+function barColor(pct) {
+  if (pct >= 70) return 'var(--green)';
+  if (pct >= 40) return 'var(--primary)';
+  return 'var(--red)';
+}
+
+function formatDate(isoStr) {
+  if (!isoStr) return '—';
+  const d = new Date(isoStr);
+  return d.toLocaleDateString('en-IN', { day:'2-digit', month:'2-digit', year:'numeric' });
+}
+
+async function loadReport() {
+  // Get session_id from URL: /ui/report.html?session=3
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session');
+
+  if (!sessionId) {
+    document.getElementById('loading').innerHTML = '<div style="color:var(--red);">No session ID provided. Use ?session=ID</div>';
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/reports/session/${sessionId}`);
+    if (!res.ok) throw new Error('Session not found');
+    const data = await res.json();
+    renderReport(data);
+  } catch(e) {
+    document.getElementById('loading').innerHTML = `<div style="color:var(--red);">Error: ${e.message}</div>`;
+  }
+}
+
+function renderReport(data) {
+  const s = data.session;
+  const sm = data.summary;
+
+  // ── Header pills ──
+  document.getElementById('h-date').textContent = 'Date: ' + formatDate(s.started_at);
+  document.getElementById('h-test').textContent = 'Test #: ' + s.test_number;
+  document.getElementById('h-score').textContent = 'Score: ' + (s.total_score || 0) + ' / ' + (s.total_questions || 0);
+  document.getElementById('h-grade').textContent = 'Overall Grade: ' + (s.grade || '—');
+
+  // ── Session details ──
+  document.getElementById('m-cli').textContent = s.cli_name || '—';
+  const staffId = s.staff_cms_id || s.staff_hrms_id || '';
+  document.getElementById('m-staff').innerHTML = (s.staff_name || '—') + (staffId ? ` <span class="staff-id">/ ${staffId}</span>` : '');
+  document.getElementById('m-desg').textContent = s.staff_designation || '—';
+  document.getElementById('m-nom-cli').textContent = s.nominated_cli_name || '—';
+
+  // Weak areas
+  const weakCats = data.category_scores
+    .filter(c => c.assessment === 'Weak' || c.assessment === 'Development Area')
+    .map(c => c.subcategory && c.subcategory !== 'General' ? c.subcategory : formatCat(c.category));
+  document.getElementById('m-weak').textContent = weakCats.length ? weakCats.join(' · ') : 'None';
+
+  // Inspector notes
+  const notes = s.inspector_notes;
+  if (notes) {
+    document.getElementById('m-notes').textContent = notes;
+  } else {
+    document.getElementById('m-notes').textContent = 'No notes added';
+  }
+
+  // ── Score summary ──
+  document.getElementById('s-total').textContent = sm.total_questions || 0;
+  document.getElementById('s-correct').textContent = sm.correct || 0;
+  document.getElementById('s-wrong').textContent = sm.incorrect || 0;
+  document.getElementById('s-duration').textContent = data.duration_formatted || '—';
+  document.getElementById('s-categories').textContent = sm.category_mix || '—';
+
+  const gradeEl = document.getElementById('s-grade');
+  gradeEl.textContent = s.grade || '—';
+  gradeEl.className = 'score-chip ' + gradeClass(s.grade);
+
+  // ── Category bars ──
+  const catBars = document.getElementById('cat-bars');
+  catBars.innerHTML = data.category_scores.map(cs => {
+    const pct = parseFloat(cs.percentage) || 0;
+    return `<div class="cat-bar-row">
+      <div class="cat-bar-label">${cs.subcategory && cs.subcategory !== 'General' ? cs.subcategory : formatCat(cs.category)}</div>
+      <div class="cat-bar-track">
+        <div class="cat-bar-fill" style="width:${pct}%;background:${barColor(pct)};"></div>
+      </div>
+      <div class="cat-bar-val" style="color:${barColor(pct)};">${cs.score}/${cs.question_count} (${pct}%)</div>
+    </div>`;
+  }).join('');
+
+  // ── Reattempt note ──
+  if (data.previous_wrong_reattempts > 0) {
+    document.getElementById('reattempt-note').textContent =
+      `${data.previous_wrong_reattempts} question(s) were re-asked from previous session (previously answered incorrectly).`;
+  }
+
+  // ── Marksheet ──
+  // Staff's test number = count of their tests in history
+  const staffTestNo = data.history ? data.history.length : 1;
+  document.getElementById('h-test-tag').textContent = `[Test No. ${staffTestNo}]`;
+
+  document.getElementById('marksheet-body').innerHTML = data.marksheet.map((m, i) => {
+    const cls = m.is_correct ? 'correct-mark' : 'wrong-mark';
+    const icon = m.is_correct ? '✓' : '✗';
+    const reattemptTag = m.is_reattempt ? ' <span class="reattempt-tag">[R]</span>' : '';
+    return `<tr>
+      <td>${i + 1} <span class="qid-sub">(${m.question_id})</span></td>
+      <td class="q-text">${m.question_text}${reattemptTag}</td>
+      <td class="${cls}">${m.submitted_answer_text || m.submitted_answer}</td>
+      <td>${m.correct_answer_text || m.correct_answer}</td>
+      <td class="${cls}" style="text-align:center;font-weight:700;">${icon}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Assessment History ──
+  const histBody = document.getElementById('history-body');
+  const PRINT_LIMIT = 5;
+  if (data.history && data.history.length) {
+    const total = data.history.length;
+    document.querySelector('.history-count').textContent = total > PRINT_LIMIT ? `(showing ${PRINT_LIMIT} of ${total})` : '';
+    histBody.innerHTML = data.history.map((h, i) => `<tr class="${i >= PRINT_LIMIT ? 'print-hide' : ''}">
+        <td>${i + 1}</td>
+        <td>${formatCat(h.category_code || 'all_topics')}</td>
+        <td>${h.total_score}/${h.total_questions}</td>
+        <td>${formatDate(h.started_at)}</td>
+      </tr>`).join('');
+  } else {
+    histBody.innerHTML = '<tr><td colspan="4" class="muted">No previous sessions</td></tr>';
+  }
+
+  // ── Weak & development areas ──
+  const weakBody = document.getElementById('weak-body');
+  const allWeak = [...(data.weak_history || []), ...(data.development_areas || [])];
+  if (allWeak.length) {
+    const totalWeak = allWeak.length;
+    document.querySelector('.weak-count').textContent = totalWeak > PRINT_LIMIT ? `(showing ${PRINT_LIMIT} of ${totalWeak})` : '';
+    weakBody.innerHTML = allWeak.map((w, i) => `<tr class="${i >= PRINT_LIMIT ? 'print-hide' : ''}">
+        <td>${i + 1}</td>
+        <td>${formatCat(w.subcategory || w.category || '')}</td>
+        <td>${w.question_count}</td>
+        <td>${parseFloat(w.percentage || 0).toFixed(0)}%</td>
+      </tr>`).join('');
+  } else {
+    weakBody.innerHTML = '<tr><td>—</td><td class="muted">No weak areas flagged</td><td>—</td><td>—</td></tr>';
+  }
+
+  // ── Development plan ──
+  const devBody = document.getElementById('devplan-body');
+  if (data.dev_plans && data.dev_plans.length) {
+    devBody.innerHTML = data.dev_plans.map((d, i) => `<tr class="${i >= PRINT_LIMIT ? 'print-hide' : ''}">
+      <td>${i + 1}</td>
+      <td>${d.subcategory}</td>
+      <td class="muted">${d.action_text}</td>
+    </tr>`).join('');
+  } else {
+    devBody.innerHTML = '<tr><td colspan="3" class="muted">No development plan items yet</td></tr>';
+  }
+
+  // ── Show report, hide loading ──
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('report').style.display = 'block';
+
+  // Update page title
+  document.title = `RUNSAFE Report — ${s.staff_name || 'Session'} — Test #${s.test_number}`;
+}
+
+loadReport();
+
+// ── Theme Toggle ──
+const themeToggle = document.getElementById('theme-toggle');
+const savedTheme = localStorage.getItem('runsafe-theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+themeToggle.addEventListener('click', () => {
+  const current = document.documentElement.getAttribute('data-theme');
+  const newTheme = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('runsafe-theme', newTheme);
+});
+</script>
+</body>
+</html>
