@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>CRTMS | RUNSAFE</title>
+  <title>CRTMS | SATARK</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
@@ -366,8 +366,8 @@
   <div class="brand">
     <div class="logo">R</div>
     <div>
-      <span>CRTMS RUNSAFE</span><br />
-      <span class="brand-sub">Running Staff Assessment Framework for Enhanced Familiarization & Evaluation</span>
+      <span>CRTMS SATARK</span><br />
+      <span class="brand-sub">System for Assessment, Training And Railway Knowledge</span>
     </div>
   </div>
   <div class="header-info">
@@ -725,7 +725,7 @@ function renderHistoryChips(sessions) {
     const d = s.started_at ? new Date(s.started_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '';
     const pct = parseFloat(s.percentage || 0).toFixed(0);
     const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--primary)' : 'var(--red)';
-    return `<div class="hist-chip" onclick="window.open('/ui/report.html?session=${s.id}','runsafe_report')">
+    return `<div class="hist-chip" onclick="window.open('/ui/report.html?session=${s.id}','satark_report')">
       <span class="hist-date">#${s.test_number} · ${d}</span>
       <span class="hist-score" style="color:${color};">${s.total_score}/${s.total_questions} (${pct}%)</span>
     </div>`;
@@ -1079,7 +1079,7 @@ document.getElementById('btn-new-session').addEventListener('click', () => {
 });
 
 document.getElementById('btn-view-report').addEventListener('click', () => {
-  if (sessionData) window.open(`/ui/report.html?session=${sessionData.session_id}`, 'runsafe_report');
+  if (sessionData) window.open(`/ui/report.html?session=${sessionData.session_id}`, 'satark_report');
 });
 
 // Close dropdowns
@@ -1093,14 +1093,14 @@ document.addEventListener('click', e => {
 
 // ── Theme Toggle ──
 const themeToggle = document.getElementById('theme-toggle');
-const savedTheme = localStorage.getItem('runsafe-theme') || 'light';
+const savedTheme = localStorage.getItem('satark-theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
 themeToggle.addEventListener('click', () => {
   const current = document.documentElement.getAttribute('data-theme');
   const newTheme = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', newTheme);
-  localStorage.setItem('runsafe-theme', newTheme);
+  localStorage.setItem('satark-theme', newTheme);
 });
 </script>
 </body>

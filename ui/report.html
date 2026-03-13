@@ -248,7 +248,7 @@
   <!-- ═══ HEADER ═══ -->
   <header>
     <div class="header-left">
-      <h1>RUNSAFE Session Report</h1>
+      <h1>SATARK Session Report</h1>
       <p>Central Railway · Mumbai Division · Office of Sr.DEE (TRS-O)</p>
       <p class="slogan">Mission Zero SPAD</p>
     </div>
@@ -578,21 +578,21 @@ function renderReport(data) {
   document.getElementById('report').style.display = 'block';
 
   // Update page title
-  document.title = `RUNSAFE Report — ${s.staff_name || 'Session'} — Test #${s.test_number}`;
+  document.title = `SATARK Report — ${s.staff_name || 'Session'} — Test #${s.test_number}`;
 }
 
 loadReport();
 
 // ── Theme Toggle ──
 const themeToggle = document.getElementById('theme-toggle');
-const savedTheme = localStorage.getItem('runsafe-theme') || 'light';
+const savedTheme = localStorage.getItem('satark-theme') || 'light';
 document.documentElement.setAttribute('data-theme', savedTheme);
 
 themeToggle.addEventListener('click', () => {
   const current = document.documentElement.getAttribute('data-theme');
   const newTheme = current === 'dark' ? 'light' : 'dark';
   document.documentElement.setAttribute('data-theme', newTheme);
-  localStorage.setItem('runsafe-theme', newTheme);
+  localStorage.setItem('satark-theme', newTheme);
 });
 </script>
 </body>
