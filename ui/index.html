@@ -748,7 +748,7 @@ function renderHistoryChips(sessions) {
     const d = s.started_at ? new Date(s.started_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '';
     const pct = parseFloat(s.percentage || 0).toFixed(0);
     const color = pct >= 70 ? 'var(--green)' : pct >= 40 ? 'var(--primary)' : 'var(--red)';
-    return `<div class="hist-chip" onclick="window.open('/ui/report.html?session=${s.id}','satark_report')">
+    return `<div class="hist-chip" onclick="window.open('/counselling/ui/report.html?session=${s.id}','satark_report')">
       <span class="hist-date">#${s.test_number} · ${d}</span>
       <span class="hist-score" style="color:${color};">${s.total_score}/${s.total_questions} (${pct}%)</span>
     </div>`;
@@ -1105,7 +1105,7 @@ document.getElementById('btn-new-session').addEventListener('click', () => {
 });
 
 document.getElementById('btn-view-report').addEventListener('click', () => {
-  if (sessionData) window.open(`/ui/report.html?session=${sessionData.session_id}`, 'satark_report');
+  if (sessionData) window.open(`/counselling/ui/report.html?session=${sessionData.session_id}`, 'satark_report');
 });
 
 // Close dropdowns
