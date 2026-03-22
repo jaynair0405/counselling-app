@@ -12,10 +12,12 @@
       --bg: #f8fafc;
       --panel: rgba(255, 255, 255, 0.95);
       --card: rgba(0, 0, 0, 0.04);
+      --card-solid: #ffffff;
       --border: rgba(0, 0, 0, 0.12);
       --primary: #d97706;
       --primary-strong: #ea580c;
       --accent: #0891b2;
+      --accent-text: #0891b2;
       --green: #16a34a;
       --red: #dc2626;
       --text: #1e293b;
@@ -30,10 +32,12 @@
       --bg: #0c1324;
       --panel: rgba(14, 22, 40, 0.78);
       --card: rgba(255, 255, 255, 0.06);
+      --card-solid: #1a2340;
       --border: rgba(255, 255, 255, 0.12);
       --primary: #f59e0b;
       --primary-strong: #f97316;
       --accent: #22d3ee;
+      --accent-text: #67e8f9;
       --green: #22c55e;
       --red: #ef4444;
       --text: #e3e7ef;
@@ -105,7 +109,7 @@
     }
 
     .panel {
-      background: rgba(255, 255, 255, 0.9);
+      background: var(--panel);
       border: 1px solid var(--border); border-radius: var(--radius-lg);
       box-shadow: var(--shadow); padding: 18px;
     }
@@ -402,7 +406,9 @@
 </div>
 
 <script>
-const API = window.location.origin + '/api';
+// Detect base path for deployment behind reverse proxy (e.g., /counselling/)
+const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/ui'));
+const API = basePath + '/api';
 
 function formatCat(code) {
   return { traffic_rules:'Traffic Rules', electric_loco:'Electric Loco', diesel_loco:'Diesel Loco',

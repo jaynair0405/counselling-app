@@ -10,6 +10,13 @@
   <style>
     :root {
       --bg: #f8fafc;
+      --card-solid: #ffffff;
+      --chip-selected-text: #92400e;
+      --badge-accent: #b45309;
+      --grade-green: #166534;
+      --grade-amber: #92400e;
+      --grade-red: #dc2626;
+      --accent-text: #0891b2;
       --panel: rgba(255, 255, 255, 0.95);
       --card: rgba(0, 0, 0, 0.04);
       --border: rgba(0, 0, 0, 0.1);
@@ -29,6 +36,13 @@
 
     [data-theme="dark"] {
       --bg: #0c1324;
+      --card-solid: #1a2340;
+      --chip-selected-text: #fde68a;
+      --badge-accent: #fbbf24;
+      --grade-green: #86efac;
+      --grade-amber: #fde68a;
+      --grade-red: #fca5a5;
+      --accent-text: #67e8f9;
       --panel: rgba(14, 22, 40, 0.7);
       --card: rgba(255, 255, 255, 0.06);
       --border: rgba(255, 255, 255, 0.09);
@@ -86,6 +100,7 @@
       display: grid; place-items: center; color: #0c1324; font-weight: 800; font-size: 1.1rem;
     }
     .brand-sub { color: var(--muted); font-size: 0.85rem; font-weight: 400; }
+    .slogan { color: var(--primary); font-size: 0.8rem; font-weight: 600; font-style: italic; margin-top: 2px; }
     .header-info { display: flex; align-items: center; gap: 16px; }
     .header-badge {
       padding: 8px 16px; border-radius: 999px; font-size: 0.85rem; font-weight: 600;
@@ -140,13 +155,13 @@
       border-color: rgba(245,158,11,0.4);
       box-shadow: 0 8px 24px rgba(249,115,22,0.15);
     }
-    .field select option { background: #1a2340; color: var(--text); }
+    .field select option { background: var(--card-solid); color: var(--text); }
     .search-wrap { position: relative; }
     .search-results {
       position: absolute; top: 100%; left: 0; right: 0; z-index: 20;
-      background: #1a2340; border: 1px solid var(--border); border-radius: 12px;
+      background: var(--card-solid); border: 1px solid var(--border); border-radius: 12px;
       max-height: 280px; overflow-y: auto; display: none; margin-top: 4px;
-      box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.15);
     }
     .search-results.open { display: block; }
     .search-item {
@@ -168,7 +183,7 @@
     .staff-card .sc-row { display: flex; gap: 20px; margin-top: 6px; color: var(--muted); font-size: 0.9rem; }
     .staff-card .sc-tag {
       display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.8rem;
-      background: rgba(245,158,11,0.15); color: #fbbf24; font-weight: 600;
+      background: rgba(245,158,11,0.15); color: var(--badge-accent); font-weight: 600;
     }
 
     .chip-row { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -181,7 +196,7 @@
     .cat-chip:hover { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.06); }
     .cat-chip.selected {
       background: rgba(245,158,11,0.18); border-color: rgba(245,158,11,0.45);
-      color: #fde68a; font-weight: 600;
+      color: var(--chip-selected-text); font-weight: 600;
     }
 
     .btn-primary {
@@ -212,7 +227,7 @@
       font-family: inherit; transition: all 160ms; user-select: none;
     }
     .mode-btn.active {
-      background: rgba(245,158,11,0.18); color: #fde68a;
+      background: rgba(245,158,11,0.18); color: var(--chip-selected-text);
     }
     .mode-btn:hover:not(.active) { background: rgba(255,255,255,0.04); }
 
@@ -224,11 +239,11 @@
     .quiz-progress { display: flex; align-items: center; gap: 16px; }
     .q-badge {
       padding: 8px 18px; border-radius: 10px; font-weight: 700; font-size: 0.95rem;
-      background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.25);
+      background: rgba(245,158,11,0.15); color: var(--badge-accent); border: 1px solid rgba(245,158,11,0.25);
     }
     .q-cat {
       padding: 8px 14px; border-radius: 10px; font-size: 0.85rem; font-weight: 500;
-      background: rgba(34,211,238,0.1); color: #67e8f9; border: 1px solid rgba(34,211,238,0.2);
+      background: rgba(34,211,238,0.1); color: var(--accent-text); border: 1px solid rgba(34,211,238,0.2);
     }
     .q-timer {
       padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 0.95rem;
@@ -266,7 +281,7 @@
       transition: all 180ms;
     }
     .option-card.selected .option-letter {
-      background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.5); color: #fde68a;
+      background: rgba(245,158,11,0.25); border-color: rgba(245,158,11,0.5); color: var(--chip-selected-text);
     }
     .option-text { font-size: 1.1rem; line-height: 1.45; }
     .quiz-actions { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -295,9 +310,9 @@
       display: inline-block; padding: 8px 24px; border-radius: 10px;
       font-weight: 700; font-size: 1.1rem; margin-top: 8px;
     }
-    .grade-proficient { background: rgba(34,197,94,0.15); color: #86efac; border: 1px solid rgba(34,197,94,0.3); }
-    .grade-development { background: rgba(245,158,11,0.15); color: #fde68a; border: 1px solid rgba(245,158,11,0.3); }
-    .grade-weak { background: rgba(239,68,68,0.15); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .grade-proficient { background: rgba(34,197,94,0.15); color: var(--grade-green); border: 1px solid rgba(34,197,94,0.3); }
+    .grade-development { background: rgba(245,158,11,0.15); color: var(--grade-amber); border: 1px solid rgba(245,158,11,0.3); }
+    .grade-weak { background: rgba(239,68,68,0.15); color: var(--grade-red); border: 1px solid rgba(239,68,68,0.3); }
 
     .results-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 24px 0; }
     .rs-card {
@@ -368,6 +383,7 @@
     <div>
       <span>CRTMS SATARK</span><br />
       <span class="brand-sub">System for Assessment, Training And Railway Knowledge</span>
+      <div class="slogan">Mission Zero SPAD</div>
     </div>
   </div>
   <div class="header-info">
@@ -502,6 +518,10 @@
 
 <!-- ═══ QUIZ ═══ -->
 <div class="screen" id="screen-quiz">
+  <div style="text-align:center; margin-bottom:16px;">
+    <div id="quiz-greeting" style="font-size:1.1rem; font-weight:500; margin-bottom:4px;"></div>
+    <div style="color:var(--primary); font-weight:600; font-style:italic;">Mission Zero SPAD</div>
+  </div>
   <div class="quiz-layout">
     <div class="panel">
       <div class="quiz-header">
@@ -586,7 +606,9 @@
 </div>
 
 <script>
-const API = window.location.origin + '/api';
+// Detect base path for deployment behind reverse proxy (e.g., /counselling/)
+const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/ui'));
+const API = basePath + '/api';
 
 // State
 let selectedStaff = null;
@@ -758,9 +780,9 @@ function renderCliResults(container, results) {
   }
   container.innerHTML = results.map((r, i) => {
     const roleLabel = r.role === 'CLI' ? 'CLI' : 'Instructor';
-    const roleColor = r.role === 'CLI' ? '#67e8f9' : '#fbbf24';
+    const roleColorVar = r.role === 'CLI' ? 'var(--accent-text)' : 'var(--badge-accent)';
     return `<div class="search-item" data-idx="${i}">
-      <div class="si-name">${r.name} <span style="font-size:0.75rem;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:${roleColor};margin-left:8px;">${roleLabel}</span></div>
+      <div class="si-name">${r.name} <span style="font-size:0.75rem;padding:2px 8px;border-radius:6px;background:rgba(255,255,255,0.06);color:${roleColorVar};margin-left:8px;">${roleLabel}</span></div>
       <div class="si-meta">${r.cms_id || ''} · ${r.office || ''}</div>
     </div>`;
   }).join('');
@@ -882,6 +904,9 @@ document.getElementById('btn-start').addEventListener('click', async () => {
     quizStartTime = Date.now();
     selectedOption = null;
     document.getElementById('log-items').innerHTML = '';
+
+    // Set greeting
+    document.getElementById('quiz-greeting').textContent = `Namaste ${sessionData.staff.name}, Welcome to the SATARK session`;
 
     showScreen('quiz');
     startTimer();
