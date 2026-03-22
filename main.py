@@ -11,7 +11,6 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-import os
 
 from routes.session import router as session_router
 from routes.questions import router as questions_router
@@ -21,12 +20,10 @@ from routes.reports import router as reports_router
 # ─────────────────────────────────────────────
 # App Setup
 # ─────────────────────────────────────────────
-ROOT_PATH = os.getenv("ROOT_PATH", "")
 app = FastAPI(
     title="CRTMS Counselling API",
     description="Computer-Based Counselling System for Loco Pilots — Central Railway Mumbai Division",
-    version="1.0.0",
-    root_path=ROOT_PATH
+    version="1.0.0"
 )
 
 # CORS for local dev
@@ -56,7 +53,7 @@ app.include_router(reports_router, prefix="/api/reports", tags=["Reports"])
 # ─────────────────────────────────────────────
 @app.get("/")
 def root():
-    return RedirectResponse(url=f"{ROOT_PATH}/ui/")
+    return RedirectResponse(url="/counselling/ui/")
 
 
 @app.get("/health")

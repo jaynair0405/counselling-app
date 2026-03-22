@@ -9,9 +9,6 @@ module.exports = {
       args: "main:app --host 127.0.0.1 --port 5003",
       cwd: "/home/railway/counselling-app",
       interpreter: "none",
-      env: {
-        ROOT_PATH: "/counselling",
-      },
     },
   ],
 };
