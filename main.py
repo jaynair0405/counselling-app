@@ -11,7 +11,6 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
 import os
 
 from routes.session import router as session_router
@@ -42,9 +41,7 @@ app.add_middleware(
 # ─────────────────────────────────────────────
 # Static UI files
 # ─────────────────────────────────────────────
-UI_DIR = Path(__file__).parent / "ui"
-if UI_DIR.exists():
-    app.mount("/ui", StaticFiles(directory=str(UI_DIR), html=True), name="ui")
+app.mount("/ui", StaticFiles(directory="ui", html=True), name="ui")
 
 # ─────────────────────────────────────────────
 # Routers
