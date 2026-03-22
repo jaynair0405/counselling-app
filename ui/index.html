@@ -606,9 +606,10 @@
 </div>
 
 <script>
-// Detect base path for deployment behind reverse proxy (e.g., /counselling/)
-const basePath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/ui'));
-const API = basePath + '/api';
+// API base - auto-detect environment (same pattern as SPM/RTIS)
+const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+  ? '/api'
+  : '/counselling/api';
 
 // State
 let selectedStaff = null;

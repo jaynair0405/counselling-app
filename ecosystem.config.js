@@ -1,5 +1,4 @@
 // PM2 Ecosystem Config for Counselling App
-// Save as: ecosystem.config.js
 // Usage: pm2 start ecosystem.config.js
 
 module.exports = {
@@ -12,10 +11,6 @@ module.exports = {
       interpreter: "none",
       env: {
         ROOT_PATH: "/counselling",
-        DB_HOST: "localhost",
-        DB_USER: "root",
-        DB_PASSWORD: "",
-        DB_NAME: "bbtro",
       },
     },
   ],
