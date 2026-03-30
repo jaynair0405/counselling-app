@@ -8,6 +8,8 @@ This reads the session cookie set by the Node.js BBTRO app.
 
 import os
 import re
+import json
+from urllib.parse import unquote
 from typing import Callable
 
 from fastapi import HTTPException, Request
@@ -25,6 +27,8 @@ DEV_BYPASS_USER = {
 DEFAULT_OPERATOR_ROLES = {
     "ADMIN",
     "SUPERADMIN",
+    "DIVISIONADMIN",
+    "OFFICEHR",
     "CLI",
     "JRINST",
     "SRINST",
@@ -36,6 +40,7 @@ DEFAULT_OPERATOR_ROLES = {
 DEFAULT_EDITOR_ROLES = {
     "ADMIN",
     "SUPERADMIN",
+    "DIVISIONADMIN",
     "JRINST",
     "SRINST",
     "ADEE",
@@ -58,15 +63,16 @@ def _normalize_role(role: str | None) -> str:
 
 
 def _extract_user_roles(user: dict) -> set[str]:
-    raw_role = user.get("role")
-    if not raw_role:
-        return set()
-
     roles = set()
-    for token in re.split(r"[,\|;/]+", str(raw_role)):
-        normalized = _normalize_role(token)
-        if normalized:
-            roles.add(normalized)
+    for field in ("role", "div_role"):
+        raw_value = user.get(field)
+        if not raw_value:
+            continue
+
+        for token in re.split(r"[,\|;/]+", str(raw_value)):
+            normalized = _normalize_role(token)
+            if normalized:
+                roles.add(normalized)
     return roles
 
 
@@ -78,6 +84,53 @@ def _parse_allowed_roles(env_var: str, defaults: set[str]) -> set[str]:
         normalized
         for normalized in (_normalize_role(token) for token in raw.split(","))
         if normalized
+    }
+
+
+def _extract_session_id(raw_token: str | None) -> str | None:
+    """
+    Express-session cookies are typically stored as:
+      s:<session_id>.<signature>
+    and may be URL-encoded by the browser.
+    """
+    if not raw_token:
+        return None
+
+    token = unquote(str(raw_token)).strip()
+    if token.startswith("s:"):
+        token = token[2:]
+    if "." in token:
+        token = token.split(".", 1)[0]
+
+    return token or None
+
+
+def _normalize_session_user(session_data: dict) -> dict | None:
+    """
+    Convert the Express session JSON payload into the user shape expected by
+    the counselling routes.
+    """
+    if not isinstance(session_data, dict):
+        return None
+
+    raw_user = session_data.get("user", session_data)
+    if not isinstance(raw_user, dict):
+        return None
+
+    username = raw_user.get("username")
+    user_id = raw_user.get("id") or raw_user.get("user_id")
+    if not username and not user_id:
+        return None
+
+    return {
+        "user_id": user_id,
+        "username": username,
+        "role": raw_user.get("role"),
+        "div_role": raw_user.get("div_role"),
+        "office": raw_user.get("office") or raw_user.get("div_office_code") or raw_user.get("office_code"),
+        "full_name": raw_user.get("full_name") or raw_user.get("name"),
+        "realm": raw_user.get("realm"),
+        "div_office_code": raw_user.get("div_office_code"),
     }
 
 
@@ -110,17 +163,41 @@ def get_current_user(request: Request) -> dict | None:
     if not session_token:
         return None
 
+    session_id = _extract_session_id(session_token)
+    if not session_id:
+        return None
+
     try:
         conn = get_db_connection()
         cursor = conn.cursor(dictionary=True)
-        
-        # Adjust this query to match your session storage
-        # This assumes sessions are stored in a `sessions` table
+
+        # BBTRO uses express-session + express-mysql-session, which stores JSON
+        # in sessions(session_id, expires, data). We read that payload and
+        # extract req.session.user from it.
         cursor.execute(
-            "SELECT user_id, username, role, office FROM sessions WHERE session_id = %s AND expires_at > NOW()",
-            (session_token,)
+            """SELECT data
+               FROM sessions
+               WHERE session_id = %s
+                 AND expires > (UNIX_TIMESTAMP() * 1000)
+               LIMIT 1""",
+            (session_id,)
         )
-        user = cursor.fetchone()
+        row = cursor.fetchone()
+
+        if row and row.get("data"):
+            raw_data = row["data"]
+            if isinstance(raw_data, (bytes, bytearray)):
+                raw_data = raw_data.decode("utf-8", errors="ignore")
+
+            try:
+                session_data = json.loads(raw_data)
+            except (TypeError, json.JSONDecodeError):
+                session_data = None
+
+            user = _normalize_session_user(session_data)
+        else:
+            user = None
+
         cursor.close()
         conn.close()
         return user
