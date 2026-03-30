@@ -178,7 +178,7 @@ def get_current_user(request: Request) -> dict | None:
             """SELECT data
                FROM sessions
                WHERE session_id = %s
-                 AND expires > (UNIX_TIMESTAMP() * 1000)
+                 AND expires > UNIX_TIMESTAMP()
                LIMIT 1""",
             (session_id,)
         )
