@@ -10,12 +10,33 @@ Endpoints:
   GET    /api/questions/stats     → Question bank statistics
 """
 
-from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from enum import Enum
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional
+from auth import require_counselling_editor, require_counselling_operator
 from db_config import get_db_connection
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_counselling_operator)])
+
+
+class QuestionStaffType(str, Enum):
+    MAINLINE = "MAINLINE"
+    SUBURBAN = "SUBURBAN"
+    COMMON = "COMMON"
+
+
+class QuestionDifficulty(str, Enum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
+
+
+class QuestionOption(str, Enum):
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
 
 
 # ─────────────────────────────────────────────
@@ -23,32 +44,43 @@ router = APIRouter()
 # ─────────────────────────────────────────────
 
 class QuestionCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     question_text: str
     option_a: str
     option_b: str
     option_c: str
     option_d: str
-    correct_option: str  # A, B, C, D
-    staff_type: str = "COMMON"
+    correct_option: QuestionOption
+    staff_type: QuestionStaffType = QuestionStaffType.COMMON
     category_code: str
     subcategory_code: Optional[str] = None
-    difficulty: str = "medium"
+    difficulty: QuestionDifficulty = QuestionDifficulty.medium
     section_group: Optional[str] = None
     targeted_desg: Optional[list[str]] = None
     created_by: Optional[str] = None
 
+    @field_validator("question_text", "option_a", "option_b", "option_c", "option_d", "category_code")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("must not be empty")
+        return value.strip()
+
 
 class QuestionUpdate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     question_text: Optional[str] = None
     option_a: Optional[str] = None
     option_b: Optional[str] = None
     option_c: Optional[str] = None
     option_d: Optional[str] = None
-    correct_option: Optional[str] = None
-    staff_type: Optional[str] = None
+    correct_option: Optional[QuestionOption] = None
+    staff_type: Optional[QuestionStaffType] = None
     category_code: Optional[str] = None
     subcategory_code: Optional[str] = None
-    difficulty: Optional[str] = None
+    difficulty: Optional[QuestionDifficulty] = None
     section_group: Optional[str] = None
     targeted_desg: Optional[list[str]] = None
 
@@ -193,7 +225,10 @@ async def get_question(question_id: int):
 
 
 @router.post("/")
-async def create_question(req: QuestionCreate):
+async def create_question(
+    req: QuestionCreate,
+    user: dict = Depends(require_counselling_editor),
+):
     """Add a new question to the bank."""
     import json
 
@@ -201,6 +236,11 @@ async def create_question(req: QuestionCreate):
     cursor = conn.cursor()
     try:
         targeted_json = json.dumps(req.targeted_desg) if req.targeted_desg else None
+        created_by = (
+            user.get("username")
+            or user.get("user_id")
+            or req.created_by
+        )
 
         cursor.execute(
             """INSERT INTO div_runsafe_questions
@@ -209,8 +249,8 @@ async def create_question(req: QuestionCreate):
                 targeted_desg, created_by)
                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
             (req.question_text, req.option_a, req.option_b, req.option_c, req.option_d,
-             req.correct_option.upper(), req.staff_type, req.category_code, req.subcategory_code,
-             req.difficulty, req.section_group, targeted_json, req.created_by)
+             req.correct_option.value, req.staff_type.value, req.category_code, req.subcategory_code,
+             req.difficulty.value, req.section_group, targeted_json, created_by)
         )
         conn.commit()
         new_id = cursor.lastrowid
@@ -226,9 +266,15 @@ async def create_question(req: QuestionCreate):
 
 
 @router.put("/{question_id}")
-async def update_question(question_id: int, req: QuestionUpdate):
+async def update_question(
+    question_id: int,
+    req: QuestionUpdate,
+    user: dict = Depends(require_counselling_editor),
+):
     """Update an existing question."""
     import json
+
+    _ = user
 
     conn = get_db_connection()
     cursor = conn.cursor()
@@ -243,11 +289,11 @@ async def update_question(question_id: int, req: QuestionUpdate):
             "option_b": req.option_b,
             "option_c": req.option_c,
             "option_d": req.option_d,
-            "correct_option": req.correct_option.upper() if req.correct_option else None,
-            "staff_type": req.staff_type,
+            "correct_option": req.correct_option.value if req.correct_option else None,
+            "staff_type": req.staff_type.value if req.staff_type else None,
             "category_code": req.category_code,
             "subcategory_code": req.subcategory_code,
-            "difficulty": req.difficulty,
+            "difficulty": req.difficulty.value if req.difficulty else None,
             "section_group": req.section_group,
         }
 
@@ -283,8 +329,12 @@ async def update_question(question_id: int, req: QuestionUpdate):
 
 
 @router.delete("/{question_id}")
-async def delete_question(question_id: int):
+async def delete_question(
+    question_id: int,
+    user: dict = Depends(require_counselling_editor),
+):
     """Soft-delete a question (set active=0). Does not remove from DB."""
+    _ = user
     conn = get_db_connection()
     cursor = conn.cursor()
     try:

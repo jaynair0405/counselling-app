@@ -9,14 +9,38 @@ Endpoints:
   GET  /api/session/active     → List active (incomplete) sessions
 """
 
-from fastapi import APIRouter, Request, HTTPException, Query
-from pydantic import BaseModel
-from typing import Optional
+import mysql.connector
+from mysql.connector import errorcode
+from enum import Enum
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from auth import require_counselling_operator
 from db_config import get_db_connection
-from services.quiz_engine import generate_quiz, derive_lobby_from_cms_id
+from services.quiz_engine import generate_quiz
 from services.scoring import evaluate_answers
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_counselling_operator)])
+
+MAX_TEST_NUMBER_RETRIES = 5
+
+
+class StaffType(str, Enum):
+    MAINLINE = "MAINLINE"
+    SUBURBAN = "SUBURBAN"
+
+
+class DifficultyMode(str, Enum):
+    easy = "easy"
+    medium = "medium"
+    hard = "hard"
+    mixed = "mixed"
+
+
+class AnswerOption(str, Enum):
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
 
 
 # ─────────────────────────────────────────────
@@ -24,22 +48,33 @@ router = APIRouter()
 # ─────────────────────────────────────────────
 
 class StartSessionRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     staff_id: str          # Can be CMS ID (KYN4310) or HRMS ID
     cli_id: str            # CLI CMS ID (CSTM0027) or HRMS ID
     category: str = "all_topics"
-    difficulty: str = "mixed"
-    question_count: int = 15
-    staff_type: str = "MAINLINE"  # MAINLINE or SUBURBAN
+    difficulty: DifficultyMode = DifficultyMode.mixed
+    question_count: int = Field(15, ge=5, le=30)
+    staff_type: StaffType = StaffType.MAINLINE  # MAINLINE or SUBURBAN
+
+    @field_validator("staff_id", "cli_id", "category")
+    @classmethod
+    def validate_non_empty(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("must not be empty")
+        return value.strip()
 
 
 class SubmitAnswersRequest(BaseModel):
     session_id: int
-    answers: dict[int, str]
+    answers: dict[int, AnswerOption]
     # {question_id: "A"/"B"/"C"/"D"}
 
 
 class InspectorNotesRequest(BaseModel):
-    notes: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    notes: str = Field(..., min_length=1, max_length=5000)
 
 
 # ─────────────────────────────────────────────
@@ -265,20 +300,23 @@ def search_cli(query: str, limit: int = 10) -> list[dict]:
         conn.close()
 
 
-def get_next_test_number(staff_hrms_id: str) -> int:
-    """Get the next test number for a staff member. Replaces GAS generateTestID()."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            "SELECT COALESCE(MAX(test_number), 0) FROM div_runsafe_sessions WHERE staff_hrms_id = %s",
-            (staff_hrms_id.upper(),)
-        )
-        last = cursor.fetchone()[0]
-        return last + 1
-    finally:
-        cursor.close()
-        conn.close()
+def allocate_next_test_number(cursor, staff_hrms_id: str) -> int:
+    """
+    Allocate the next per-staff test number while holding a row lock on the latest
+    session for that staff member. The unique constraint added in schema.sql is the
+    final guard if two transactions still race on a staff member with no prior rows.
+    """
+    cursor.execute(
+        """SELECT test_number
+           FROM div_runsafe_sessions
+           WHERE staff_hrms_id = %s
+           ORDER BY test_number DESC
+           LIMIT 1
+           FOR UPDATE""",
+        (staff_hrms_id.upper(),)
+    )
+    row = cursor.fetchone()
+    return (row[0] if row else 0) + 1
 
 
 # ─────────────────────────────────────────────
@@ -327,49 +365,92 @@ async def start_session(req: StartSessionRequest):
     # Determine section group for sectional knowledge filtering
     section_group = staff_office  # simplified — can be refined
 
-    # Get next test number
-    test_number = get_next_test_number(staff_hrms_id)
+    staff_type = req.staff_type.value
+    difficulty = req.difficulty.value
 
     # Generate quiz
     questions = generate_quiz(
         staff_hrms_id=staff_hrms_id,
-        staff_type=req.staff_type,
+        staff_type=staff_type,
         category=req.category,
         designation=designation_code,
         section_group=section_group,
-        difficulty=req.difficulty,
+        difficulty=difficulty,
         question_count=req.question_count,
     )
 
     if not questions:
         raise HTTPException(status_code=404, detail="No questions found for the given criteria")
 
-    # Create session in DB
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    try:
-        cursor.execute(
-            """INSERT INTO div_runsafe_sessions
-               (staff_hrms_id, staff_cms_id, staff_name, staff_designation,
-                staff_type, staff_office,
-                cli_id, cli_cms_id, cli_name,
-                nominated_cli_id, nominated_cli_name,
-                category_code, difficulty, question_count, test_number, total_questions)
-               VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
-            (staff_hrms_id, staff_cms_id, staff_name, designation_code,
-             req.staff_type, staff_office,
-             cli_cmsid, cli_cmsid, cli_name,
-             nominated_cli_cmsid, nominated_cli_name,
-             req.category, req.difficulty, req.question_count, test_number, len(questions))
-        )
-        session_id = cursor.lastrowid
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
+    # Create session in DB with retry-safe test number allocation
+    session_id = None
+    test_number = None
+    for attempt in range(MAX_TEST_NUMBER_RETRIES):
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        try:
+            test_number = allocate_next_test_number(cursor, staff_hrms_id)
+            cursor.execute(
+                """INSERT INTO div_runsafe_sessions
+                   (staff_hrms_id, staff_cms_id, staff_name, staff_designation,
+                    staff_type, staff_office,
+                    cli_id, cli_cms_id, cli_name,
+                    nominated_cli_id, nominated_cli_name,
+                    category_code, difficulty, question_count, test_number, total_questions)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (staff_hrms_id, staff_cms_id, staff_name, designation_code,
+                 staff_type, staff_office,
+                 cli_cmsid, cli_cmsid, cli_name,
+                 nominated_cli_cmsid, nominated_cli_name,
+                 req.category, difficulty, req.question_count, test_number, len(questions))
+            )
+            session_id = cursor.lastrowid
+
+            assigned_answer_rows = []
+            for q in questions:
+                option_map = {
+                    "A": q["option_a"],
+                    "B": q["option_b"],
+                    "C": q["option_c"],
+                    "D": q["option_d"],
+                }
+                assigned_answer_rows.append(
+                    (
+                        session_id,
+                        q["id"],
+                        q["correct_option"],
+                        option_map.get(q["correct_option"], ""),
+                        1 if q.get("is_reattempt", False) else 0,
+                    )
+                )
+
+            cursor.executemany(
+                """INSERT INTO div_runsafe_answers
+                   (session_id, question_id, correct_answer, correct_answer_text, is_reattempt)
+                   VALUES (%s, %s, %s, %s, %s)""",
+                assigned_answer_rows
+            )
+            conn.commit()
+            break
+        except mysql.connector.IntegrityError as e:
+            conn.rollback()
+            if e.errno == errorcode.ER_DUP_ENTRY and attempt < MAX_TEST_NUMBER_RETRIES - 1:
+                continue
+            if e.errno == errorcode.ER_DUP_ENTRY:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Concurrent session creation conflict. Please retry."
+                )
+            raise HTTPException(status_code=500, detail=str(e))
+        except Exception as e:
+            conn.rollback()
+            raise HTTPException(status_code=500, detail=str(e))
+        finally:
+            cursor.close()
+            conn.close()
+
+    if session_id is None or test_number is None:
+        raise HTTPException(status_code=500, detail="Failed to create session")
 
     # Return questions WITHOUT correct answers (for the quiz UI)
     quiz_questions = []
@@ -407,7 +488,7 @@ async def start_session(req: StartSessionRequest):
         },
         "config": {
             "category": req.category,
-            "difficulty": req.difficulty,
+            "difficulty": difficulty,
             "question_count": len(quiz_questions),
         },
         "questions": quiz_questions,
@@ -425,26 +506,10 @@ async def submit_answers(req: SubmitAnswersRequest):
     4. Update session with final score/grade
     5. Return full marksheet
     """
-    # Verify session exists and is active
-    conn = get_db_connection()
-    cursor = conn.cursor(dictionary=True)
-    try:
-        cursor.execute(
-            "SELECT id, status, staff_hrms_id FROM div_runsafe_sessions WHERE id = %s",
-            (req.session_id,)
-        )
-        session = cursor.fetchone()
-    finally:
-        cursor.close()
-        conn.close()
-
-    if not session:
-        raise HTTPException(status_code=404, detail="Session not found")
-    if session["status"] == "completed":
-        raise HTTPException(status_code=400, detail="Session already completed")
-
-    # Evaluate
-    result = evaluate_answers(req.session_id, req.answers)
+    # Evaluate inside a transaction that locks the session row to prevent
+    # duplicate submissions and overlapping writes.
+    normalized_answers = {qid: option.value for qid, option in req.answers.items()}
+    result = evaluate_answers(req.session_id, normalized_answers)
 
     return {
         "session_id": req.session_id,

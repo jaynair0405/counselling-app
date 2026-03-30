@@ -9,12 +9,12 @@ Endpoints:
   GET /api/history/dashboard                   → Overview stats for dashboard
 """
 
-from fastapi import APIRouter, Query
-from typing import Optional
+from fastapi import APIRouter, Depends, Query
+from auth import require_counselling_operator
 from db_config import get_db_connection
 from services.scoring import get_weak_history
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_counselling_operator)])
 
 
 def resolve_staff_hrms_id(identifier: str) -> str:
@@ -30,6 +30,46 @@ def resolve_staff_hrms_id(identifier: str) -> str:
         )
         row = cursor.fetchone()
         return row["hrms_id"] if row else identifier.upper()
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def resolve_cli_identifiers(identifier: str) -> tuple[str, str]:
+    """
+    Resolve an identifier to both CLI CMS ID and HRMS ID when possible so the
+    route contract ("CMS ID or HRMS ID") matches the implementation.
+    """
+    normalized = identifier.upper()
+    conn = get_db_connection()
+    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor.execute(
+            """SELECT cmsid AS cli_cms_id, cli_hrms_id
+               FROM div_cli_master
+               WHERE (cmsid = %s OR cli_hrms_id = %s) AND is_active = 1
+               LIMIT 1""",
+            (normalized, normalized)
+        )
+        row = cursor.fetchone()
+        if row:
+            return row["cli_cms_id"], row["cli_hrms_id"]
+
+        cursor.execute(
+            """SELECT s.current_cms_id AS cli_cms_id, s.hrms_id AS cli_hrms_id
+               FROM div_staff_master s
+               JOIN designations d ON s.designation_id = d.id
+               WHERE (s.current_cms_id = %s OR s.hrms_id = %s)
+                 AND s.status = 'Active'
+                 AND d.designation_code IN ('Jr.INST', 'Sr.INST')
+               LIMIT 1""",
+            (normalized, normalized)
+        )
+        row = cursor.fetchone()
+        if row:
+            return row["cli_cms_id"], row["cli_hrms_id"]
+
+        return normalized, normalized
     finally:
         cursor.close()
         conn.close()
@@ -137,6 +177,7 @@ async def cli_sessions(
     limit: int = Query(50, ge=1, le=200),
 ):
     """Get all sessions conducted by a specific CLI. Accepts CMS ID or HRMS ID."""
+    cli_cms_id, cli_hrms_id = resolve_cli_identifiers(identifier)
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
     try:
@@ -145,9 +186,9 @@ async def cli_sessions(
                       test_number, category_code, total_score, total_questions,
                       percentage, grade, started_at, completed_at
                FROM div_runsafe_sessions
-               WHERE cli_cms_id = %s AND status = 'completed'
+               WHERE (cli_cms_id = %s OR cli_id = %s) AND status = 'completed'
                ORDER BY completed_at DESC LIMIT %s""",
-            (identifier.upper(), limit)
+            (cli_cms_id, cli_hrms_id, limit)
         )
         sessions = cursor.fetchall()
 
@@ -156,7 +197,12 @@ async def cli_sessions(
                 if s.get(key):
                     s[key] = s[key].isoformat()
 
-        return {"cli_id": identifier.upper(), "sessions": sessions, "total": len(sessions)}
+        return {
+            "cli_id": cli_cms_id,
+            "cli_hrms_id": cli_hrms_id,
+            "sessions": sessions,
+            "total": len(sessions),
+        }
 
     finally:
         cursor.close()

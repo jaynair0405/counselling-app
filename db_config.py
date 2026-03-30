@@ -21,10 +21,21 @@ DB_CONFIG = {
     "charset": "utf8mb4",
     "collation": "utf8mb4_unicode_ci",
     "autocommit": False,
+    "connection_timeout": int(os.getenv("MYSQL_CONNECT_TIMEOUT", "10")),
 }
 
 # Connection pool (initialized when needed)
 _pool: Optional[pooling.MySQLConnectionPool] = None
+
+
+def _get_pool_size() -> int:
+    """Pool size is configurable so deployments can tune for actual concurrency."""
+    raw_size = os.getenv("MYSQL_POOL_SIZE", "10")
+    try:
+        size = int(raw_size)
+    except ValueError:
+        size = 10
+    return max(5, min(size, 32))
 
 
 def _get_pool():
@@ -32,7 +43,7 @@ def _get_pool():
     if _pool is None:
         _pool = pooling.MySQLConnectionPool(
             pool_name="runsafe_pool",
-            pool_size=10,
+            pool_size=_get_pool_size(),
             pool_reset_session=True,
             **DB_CONFIG
         )

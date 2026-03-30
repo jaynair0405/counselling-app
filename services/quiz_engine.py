@@ -179,12 +179,14 @@ def fetch_eligible_questions(
                 SELECT q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d,
                        q.correct_option, q.category_code, q.subcategory_code, q.difficulty,
                        q.staff_type, q.section_group, q.targeted_desg,
-                       COUNT(a.id) as times_asked,
+                       COUNT(sess.id) as times_asked,
                        MAX(sess.started_at) as last_asked
                 FROM div_runsafe_questions q
                 LEFT JOIN div_runsafe_answers a ON q.id = a.question_id
                 LEFT JOIN div_runsafe_sessions sess ON a.session_id = sess.id
                     AND sess.staff_hrms_id = %s
+                    AND sess.status = 'completed'
+                    AND a.submitted_answer IS NOT NULL
                 WHERE q.active = 1
                   AND q.staff_type IN (%s, 'COMMON')
             """
@@ -280,6 +282,7 @@ def generate_quiz(
     """
     # Step 1: Previous wrong answers (to re-include as reattempts)
     wrong_ids = get_previous_wrong_question_ids(staff_hrms_id, category)
+    previous_correct_ids = get_previous_correct_question_ids(staff_hrms_id)
 
     # Step 2: Fetch wrong questions full data
     reattempt_questions = []
@@ -312,59 +315,114 @@ def generate_quiz(
         random.shuffle(reattempt_questions)
         return reattempt_questions[:question_count]
 
-    # Step 3: Exclude only reattempt IDs from fresh pool (to avoid duplicates)
-    exclude_ids = reattempt_ids
+    def tag_fresh(questions: list[dict]) -> list[dict]:
+        for q in questions:
+            q["is_reattempt"] = False
+        return questions
 
-    # Step 4: Fetch fresh questions (prioritized: least asked, oldest first)
-    if category == "all_topics":
-        # Pick weights based on staff type
+    def pick_mixed_questions(remaining: int, extra_exclude_ids: set[int]) -> list[dict]:
         weights = CATEGORY_WEIGHTS_SUBURBAN if staff_type == "SUBURBAN" else CATEGORY_WEIGHTS_MAINLINE
-
-        # Distribute across categories by weight, ensuring total = remaining_needed
-        fresh_questions = []
         cat_counts = {}
+        selected_questions = []
+        selected_ids = set(extra_exclude_ids)
+
         for cat, weight in weights.items():
-            cat_counts[cat] = max(1, round(remaining_needed * weight))
+            cat_counts[cat] = max(1, round(remaining * weight))
 
-        # Fix rounding: adjust largest category to fill any gap
         total_assigned = sum(cat_counts.values())
-        if total_assigned != remaining_needed:
+        if total_assigned != remaining:
             largest_cat = max(cat_counts, key=cat_counts.get)
-            cat_counts[largest_cat] += remaining_needed - total_assigned
+            cat_counts[largest_cat] += remaining - total_assigned
 
+        deferred_pool = []
         for cat, cat_count in cat_counts.items():
-            # Fetch prioritized by least asked / oldest for this staff
             cat_questions = fetch_eligible_questions(
                 staff_type=staff_type,
                 category=cat,
                 designation=designation,
                 section_group=section_group if cat == "sectional_knowledge" else None,
                 difficulty=difficulty,
-                exclude_ids=exclude_ids,
+                exclude_ids=selected_ids,
                 staff_hrms_id=staff_hrms_id,
             )
-            # Questions already ordered by priority, take first N
-            selected = cat_questions[:cat_count]
-            for q in selected:
-                q["is_reattempt"] = False
-            fresh_questions.extend(selected)
-            # Add selected to exclude set to avoid cross-category duplicates
-            exclude_ids.update(q["id"] for q in selected)
-    else:
-        # Single category mode
+
+            deferred_pool.extend([q for q in cat_questions if q["id"] in previous_correct_ids])
+            cat_questions = [q for q in cat_questions if q["id"] not in previous_correct_ids]
+
+            chosen = tag_fresh(cat_questions[:cat_count])
+            selected_questions.extend(chosen)
+            selected_ids.update(q["id"] for q in chosen)
+
+        if len(selected_questions) < remaining:
+            filler_pool = []
+            for cat in weights:
+                cat_questions = fetch_eligible_questions(
+                    staff_type=staff_type,
+                    category=cat,
+                    designation=designation,
+                    section_group=section_group if cat == "sectional_knowledge" else None,
+                    difficulty=difficulty,
+                    exclude_ids=selected_ids,
+                    staff_hrms_id=staff_hrms_id,
+                )
+                cat_questions = [q for q in cat_questions if q["id"] not in previous_correct_ids]
+                filler_pool.extend(cat_questions)
+
+            for q in filler_pool:
+                if q["id"] not in selected_ids:
+                    q["is_reattempt"] = False
+                    selected_questions.append(q)
+                    selected_ids.add(q["id"])
+                    if len(selected_questions) >= remaining:
+                        break
+
+        if len(selected_questions) < remaining:
+            for q in deferred_pool:
+                if q["id"] not in selected_ids:
+                    q["is_reattempt"] = False
+                    selected_questions.append(q)
+                    selected_ids.add(q["id"])
+                    if len(selected_questions) >= remaining:
+                        break
+
+        return selected_questions[:remaining]
+
+    def pick_single_category_questions(remaining: int, extra_exclude_ids: set[int]) -> list[dict]:
         cat_questions = fetch_eligible_questions(
             staff_type=staff_type,
             category=category,
             designation=designation,
             section_group=section_group if category == "sectional_knowledge" else None,
             difficulty=difficulty,
-            exclude_ids=exclude_ids,
+            exclude_ids=extra_exclude_ids,
             staff_hrms_id=staff_hrms_id,
         )
-        # Questions already ordered by priority, take first N
-        fresh_questions = cat_questions[:remaining_needed]
-        for q in fresh_questions:
-            q["is_reattempt"] = False
+
+        fresh_pool = [q for q in cat_questions if q["id"] not in previous_correct_ids]
+        fallback_pool = [q for q in cat_questions if q["id"] in previous_correct_ids]
+
+        selected = tag_fresh(fresh_pool[:remaining])
+        if len(selected) < remaining:
+            needed = remaining - len(selected)
+            selected.extend(tag_fresh(fallback_pool[:needed]))
+
+        return selected
+
+    # Step 3: Exclude reattempt IDs from the fresh pool to avoid duplicates.
+    exclude_ids = set(reattempt_ids)
+
+    # Step 4: Fetch fresh questions while excluding previous-correct questions by
+    # default, then backfill from that pool only if needed to reach question_count.
+    if category == "all_topics":
+        fresh_questions = pick_mixed_questions(
+            remaining=remaining_needed,
+            extra_exclude_ids=exclude_ids,
+        )
+    else:
+        fresh_questions = pick_single_category_questions(
+            remaining=remaining_needed,
+            extra_exclude_ids=exclude_ids,
+        )
 
     # Step 5: Combine
     final = reattempt_questions + fresh_questions[:remaining_needed]

@@ -400,16 +400,20 @@
   <!-- ═══ ACTIONS ═══ -->
   <div class="actions">
     <button class="btn btn-primary" onclick="window.print()">Print Report</button>
-    <button class="btn btn-secondary" onclick="if(window.opener){window.opener.focus();window.close()}else{window.location.href='/counselling/ui/'}">← Back to Quiz</button>
+    <button class="btn btn-secondary" onclick="if(window.opener){window.opener.focus();window.close()}else{window.location.href=`${UI_BASE}/`}">← Back to Quiz</button>
   </div>
 
 </div>
 
 <script>
-// API base - auto-detect environment (same pattern as SPM/RTIS)
-const API = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-  ? '/api'
-  : '/counselling/api';
+function getBasePath() {
+  const uiIndex = window.location.pathname.indexOf('/ui/');
+  return uiIndex > 0 ? window.location.pathname.slice(0, uiIndex) : '';
+}
+
+const BASE_PATH = getBasePath();
+const API = `${BASE_PATH}/api`;
+const UI_BASE = `${BASE_PATH}/ui`;
 
 function formatCat(code) {
   return { traffic_rules:'Traffic Rules', electric_loco:'Electric Loco', diesel_loco:'Diesel Loco',
@@ -438,9 +442,9 @@ function formatDate(isoStr) {
 }
 
 async function loadReport() {
-  // Get session_id from URL: /ui/report.html?session=3
+  // Accept both legacy ?session_id= and current ?session= during transition.
   const params = new URLSearchParams(window.location.search);
-  const sessionId = params.get('session');
+  const sessionId = params.get('session') || params.get('session_id');
 
   if (!sessionId) {
     document.getElementById('loading').innerHTML = '<div style="color:var(--red);">No session ID provided. Use ?session=ID</div>';

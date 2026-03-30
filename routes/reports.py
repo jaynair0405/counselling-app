@@ -7,18 +7,27 @@ Endpoints:
   GET  /api/reports/staff/{cms_id}/summary → Staff-level summary across all sessions
 """
 
-from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
-from typing import Optional
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from auth import require_counselling_operator
 from db_config import get_db_connection
 from services.scoring import get_weak_history
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_counselling_operator)])
 
 
 class DevPlanItem(BaseModel):
-    subcategory: str
-    action_text: str
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    subcategory: str = Field(..., min_length=1, max_length=100)
+    action_text: str = Field(..., min_length=1, max_length=5000)
+
+    @field_validator("subcategory", "action_text")
+    @classmethod
+    def validate_required_text(cls, value: str) -> str:
+        if not value or not value.strip():
+            raise ValueError("must not be empty")
+        return value.strip()
 
 
 class AddDevPlanRequest(BaseModel):
@@ -166,6 +175,9 @@ async def add_dev_plan(session_id: int, req: AddDevPlanRequest):
         conn.commit()
         return {"success": True, "message": f"{len(req.items)} dev plan items added"}
 
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

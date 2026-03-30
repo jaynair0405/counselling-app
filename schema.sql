@@ -184,13 +184,14 @@ CREATE TABLE IF NOT EXISTS div_runsafe_sessions (
     INDEX idx_cli (cli_cms_id),
     INDEX idx_status (status),
     INDEX idx_started (started_at),
-    INDEX idx_staff_test (staff_hrms_id, test_number)
+    UNIQUE KEY uq_staff_test (staff_hrms_id, test_number)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
 -- ============================================================================
 -- 3. COUNSELLING ANSWERS
--- One row per question answered in a session
+-- One row per question assigned in a session
+-- Created when the quiz starts, then updated when the user submits answers
 -- Replaces GAS "Results" sheet
 -- ============================================================================
 
@@ -200,7 +201,7 @@ CREATE TABLE IF NOT EXISTS div_runsafe_answers (
     question_id INT NOT NULL,
 
     submitted_answer ENUM('A','B','C','D') DEFAULT NULL,
-    -- NULL = unanswered / skipped
+    -- NULL = assigned but not yet submitted / skipped
     correct_answer ENUM('A','B','C','D') NOT NULL,
     is_correct TINYINT(1) NOT NULL DEFAULT 0,
     -- 1 = correct, 0 = wrong
@@ -217,6 +218,7 @@ CREATE TABLE IF NOT EXISTS div_runsafe_answers (
     FOREIGN KEY (session_id) REFERENCES div_runsafe_sessions(id) ON DELETE CASCADE,
     FOREIGN KEY (question_id) REFERENCES div_runsafe_questions(id),
 
+    UNIQUE KEY uq_session_question (session_id, question_id),
     INDEX idx_session (session_id),
     INDEX idx_question (question_id),
     INDEX idx_correct (is_correct)
@@ -243,6 +245,7 @@ CREATE TABLE IF NOT EXISTS div_runsafe_category_scores (
     -- "Proficient" / "Development Area" / "Weak"
 
     FOREIGN KEY (session_id) REFERENCES div_runsafe_sessions(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_session_category_subcategory (session_id, category, subcategory),
     INDEX idx_session (session_id),
     INDEX idx_assessment (assessment)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

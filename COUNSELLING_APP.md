@@ -22,10 +22,11 @@ A standalone FastAPI web application for conducting computer-based counselling (
 counselling-app/
 ├── main.py                  # FastAPI entry point, mounts routes + static
 ├── db_config.py             # MySQL connection pool (bbtro database)
-├── auth.py                  # Session cookie auth (from BBTRO Node.js app)
+├── auth.py                  # BBTRO session auth + local dev bypass helpers
 ├── requirements.txt         # Python deps: fastapi, uvicorn, mysql-connector
 ├── ecosystem.config.js      # PM2 config for production
 ├── schema.sql               # 7 tables + 2 views + seed data
+├── CONCURRENCY_HARDENING.sql # Migration for existing DBs adding new constraints
 ├── import_questions.py      # One-time CSV import script
 ├── routes/
 │   ├── session.py           # Start session, submit answers, staff/CLI search
@@ -35,6 +36,11 @@ counselling-app/
 ├── services/
 │   ├── quiz_engine.py       # Question selection, category weighting, reattempts
 │   └── scoring.py           # Answer evaluation, category scores, grade
+├── tests/
+│   ├── test_session_routes.py
+│   ├── test_scoring.py
+│   ├── test_quiz_engine.py
+│   └── test_auth.py
 └── ui/
     ├── index.html           # Single-page quiz interface (setup → quiz → results)
     └── report.html          # Detailed session report page
@@ -62,7 +68,7 @@ All tables prefixed with `div_runsafe_` following the BBTRO naming convention.
 | `div_runsafe_subcategories` | 15 | Subcategory lookup within each category |
 | `div_runsafe_questions` | 825 | MCQ question bank (509 mainline + 316 suburban) |
 | `div_runsafe_sessions` | per-quiz | One row per quiz session |
-| `div_runsafe_answers` | per-answer | One row per question answered |
+| `div_runsafe_answers` | per-question | One row per question assigned to a session; seeded at start, updated on submit |
 | `div_runsafe_category_scores` | per-session | Category/subcategory score breakdown |
 | `div_runsafe_dev_plans` | per-session | CLI action items for weak areas |
 
@@ -72,6 +78,13 @@ All tables prefixed with `div_runsafe_` following the BBTRO naming convention.
 |------|---------|
 | `v_runsafe_history` | All completed sessions with scores |
 | `v_runsafe_weak_areas` | Weak/Development areas across sessions |
+
+### Concurrency and Integrity Guards
+
+- `div_runsafe_sessions` has a unique per-staff test-number constraint on `(staff_hrms_id, test_number)`
+- `div_runsafe_answers` has a unique constraint on `(session_id, question_id)`
+- `div_runsafe_category_scores` has a unique constraint on `(session_id, category, subcategory)`
+- Existing databases should apply `CONCURRENCY_HARDENING.sql` after confirming the duplicate-check queries return zero rows
 
 ---
 
@@ -122,9 +135,10 @@ Each question has:
 
 ### Question Selection (`services/quiz_engine.py`)
 
-1. **Reattempts first:** Fetch questions the staff got wrong in their last session
-2. **Exclude correct:** Skip questions they answered correctly last time
-3. **Fresh questions:** Fill remaining slots from eligible pool
+1. **Reattempts first:** Fetch questions the staff got wrong in their latest completed session
+2. **Exclude latest correct by default:** Keep questions answered correctly in that latest session out of the fresh pool first
+3. **Fresh questions:** Fill remaining slots from the least-asked, oldest-asked eligible pool for that same staff member
+4. **Backfill if needed:** If exclusions make the pool too small, previously-correct questions are allowed back in so the requested question count can still be met
 4. **Category distribution** (for `all_topics` mode):
    - traffic_rules: 35% (~5 of 15)
    - electric_loco: 35% (~5 of 15)
@@ -134,7 +148,7 @@ Each question has:
 
 ### Single Category Mode
 
-When user selects a specific category (e.g., `electric_loco`), all questions come from that one category. Same reattempt/exclude logic applies.
+When user selects a specific category (e.g., `electric_loco`), all questions come from that one category. The same reattempt-first, exclude-latest-correct-first, and backfill-if-needed logic applies.
 
 ### Assessment Grades
 
@@ -147,6 +161,16 @@ When user selects a specific category (e.g., `electric_loco`), all questions com
 ---
 
 ## API Endpoints
+
+### Authentication and Access
+
+- `/health` is open
+- All `/api/...` routes require an authenticated operator from the parent BBTRO session model
+- Question bank create/update/delete routes require editor roles
+- The backend accepts either:
+  - BBTRO session cookies (`connect.sid` / `session_token`)
+  - `Authorization: Bearer <token>`
+- For local direct testing only, requests from `localhost` / `127.0.0.1` can use the built-in bypass controlled by `COUNSELLING_LOCALHOST_AUTH_BYPASS`
 
 ### Session (`/api/session`)
 
@@ -331,13 +355,14 @@ Not yet implemented — awaiting suburban questionnaire.
 
 ## Scoring Flow
 
-1. User submits answers → `evaluate_answers()` in `scoring.py`
-2. Each answer checked against `correct_option` in `div_runsafe_questions`
-3. Reattempt detection: was this question wrong in a previous session?
-4. All answers stored in `div_runsafe_answers`
-5. Session updated with total score, percentage, grade
-6. Category-wise scores stored in `div_runsafe_category_scores`
-7. Results returned to UI with marksheet
+1. `start_session()` creates the parent row in `div_runsafe_sessions`
+2. The assigned question set is immediately seeded into `div_runsafe_answers`
+3. `submit_answers()` calls `evaluate_answers()` inside a transaction that locks the session row
+4. The submitted question IDs must match the pre-assigned question set exactly, otherwise the request is rejected
+5. Each pre-created answer row is updated with `submitted_answer`, `submitted_answer_text`, and `is_correct`
+6. The session row is updated with total score, percentage, grade, completion time, and duration
+7. Category-wise scores are stored in `div_runsafe_category_scores`
+8. Duplicate submit attempts fail cleanly instead of writing a second result set
 
 ---
 
@@ -346,8 +371,14 @@ Not yet implemented — awaiting suburban questionnaire.
 ### Local Development
 ```bash
 cd ~/counselling-app
-source venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+export COUNSELLING_BASE_PATH=
 uvicorn main:app --reload --port 5003
+
+# Run tests
+.venv/bin/python -m pytest -q
 ```
 
 ### Production (Hostinger VPS)
@@ -360,44 +391,29 @@ pm2 start ecosystem.config.js
 ### Environment Variables
 ```
 DB_HOST=localhost
-DB_USER=jay
-DB_PASSWORD=4310jay
+DB_USER=...
+DB_PASSWORD=...
 DB_NAME=bbtro
-ROOT_PATH=/counselling   # for Nginx sub-path mounting
+COUNSELLING_BASE_PATH=/counselling
+COUNSELLING_CORS_ORIGINS=https://crtms.in,https://www.crtms.in
+COUNSELLING_UVICORN_WORKERS=2
+MYSQL_POOL_SIZE=10
+MYSQL_CONNECT_TIMEOUT=10
+COUNSELLING_LOCALHOST_AUTH_BYPASS=0
+COUNSELLING_AUTH_DISABLED=0
 ```
 
 ---
 
-## TO-DO List
-
-### High Priority (Current Sprint)
-
-- [x] Backend: Schema, routes, quiz engine, scoring
-- [x] Import 509 mainline questions (3 categories)
-- [x] Staff search (name + CMS ID)
-- [x] CLI + Instructor search (merged from two tables)
-- [x] Quiz UI: Setup → Quiz → Results screens
-- [x] Touch-friendly option cards
-- [x] CLI persists across sessions
-- [x] **Category scores in submit response** — returned in `/submit` response
-- [x] **Report page** — `ui/report.html` displays full session report
-- [x] **Encoding verified** — all questions correctly UTF-8 encoded (Hindi + English)
-- [ ] **Deploy to production** — push to crtms.in VPS
-
-### Medium Priority (Next Sprint)
+## Current Open Items
 
 - [ ] **Mainline/Suburban toggle** in setup UI (auto-detect from staff designation)
-- [x] **Suburban questions import** — EMU category imported (316 questions, 5 subcategories)
 - [ ] **Sectional Knowledge** — requires `lrd_eligible` column in div_staff_master
 - [ ] **Question Bank Manager UI** — CRUD interface for adding/editing questions
-- [ ] **Dashboard** — live stats (sessions today, avg score, question counts)
-- [ ] **Staff history page** — view all past sessions for a staff member
-- [ ] **Inspector notes** — CLI adds notes during/after counselling
+- [ ] **Dashboard UI** — backend stats exist, but no dedicated dashboard frontend yet
+- [ ] **Staff history UI** — backend history exists, but no dedicated history frontend yet
+- [ ] **Inspector notes UI polish** — backend support exists, but workflow can be improved
 - [ ] **Development plan UI** — action items for weak areas
-
-### Low Priority (Future)
-
-- [ ] **Auth integration** — read BBTRO session cookie, auto-fill CLI
 - [ ] **PWA** — manifest.json + service worker for "Add to Home Screen"
 - [ ] **PDF report export** — generate downloadable counselling report
 - [ ] **Bulk import** — upload CSV to add questions
@@ -406,7 +422,7 @@ ROOT_PATH=/counselling   # for Nginx sub-path mounting
 - [ ] **e-Case Study** — interactive scenario-based questions
 - [ ] **Multi-language** — Hindi + English toggle for question display
 - [ ] **Timer per question** — optional countdown with auto-skip
-- [ ] **Offline mode** — cache questions for field use without network
+- [ ] **Offline mode** — not implemented; requires an explicit sync/idempotency design before any PWA offline rollout
 
 ### Known Issues
 
@@ -429,7 +445,7 @@ ROOT_PATH=/counselling   # for Nginx sub-path mounting
 | `calculateCategoryScores()` | `services/scoring.py → _store_category_scores()` |
 | `assessCategory()` | `services/quiz_engine.py → get_assessment()` |
 | `weakHistoryMapping()` | `services/scoring.py → get_weak_history()` |
-| `generateTestID()` | `routes/session.py → get_next_test_number()` |
+| `generateTestID()` | `routes/session.py → allocate_next_test_number()` |
 | `reportHeaderDatas()` | `routes/reports.py → session_report()` |
 | `lobbySubcategoryMappings` | `div_runsafe_subcategories` table |
 | Google Sheets "QuestionBank" | `div_runsafe_questions` table |
@@ -442,17 +458,17 @@ ROOT_PATH=/counselling   # for Nginx sub-path mounting
 
 | File | Lines | Description |
 |------|-------|-------------|
-| `schema.sql` | 322 | Full schema with seed data |
-| `routes/session.py` | 543 | Session lifecycle + search |
-| `services/quiz_engine.py` | 348 | Question selection engine |
-| `routes/questions.py` | 321 | Question bank CRUD |
-| `routes/reports.py` | 250 | Report endpoints |
-| `routes/history.py` | 211 | History & dashboard |
-| `services/scoring.py` | 189 | Evaluation & grading |
-| `ui/index.html` | ~650 | Full quiz interface |
-| `main.py` | 68 | App entry point |
+| `schema.sql` | 324 | Full schema with seed data |
+| `routes/session.py` | 676 | Session lifecycle + search |
+| `services/quiz_engine.py` | 441 | Question selection engine |
+| `routes/questions.py` | 370 | Question bank CRUD |
+| `routes/reports.py` | 264 | Report endpoints |
+| `routes/history.py` | 256 | History & dashboard |
+| `services/scoring.py` | 253 | Evaluation & grading |
+| `ui/index.html` | 1141 | Full quiz interface |
+| `main.py` | 123 | App entry point |
 | `import_questions.py` | 95 | CSV import script |
 
 ---
 
-*Last updated: 25 Feb 2026 — EMU questions imported (316), total 825 questions*
+*Last updated: 30 Mar 2026 — docs aligned with concurrency, integrity, auth, routing, validation, and test fixes*
